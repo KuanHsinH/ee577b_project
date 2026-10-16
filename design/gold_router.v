@@ -34,6 +34,31 @@ module gold_router (
     */
     parameter PACKET_SIZE = 64;
 
+    // Single-bit fields
+    localparam VC_BIT          = PACKET_SIZE - 1;
+    localparam RESERVED_BIT    = PACKET_SIZE - 2;
+
+    // Destination coordinates
+    localparam DEST_X_MSB      = PACKET_SIZE - 3;
+    localparam DEST_X_LSB      = PACKET_SIZE - 4;
+    localparam DEST_Y_MSB      = PACKET_SIZE - 5;
+    localparam DEST_Y_LSB      = PACKET_SIZE - 6;
+
+    // Reserved bits
+    localparam RESERVED_MSB    = PACKET_SIZE - 7;
+    localparam RESERVED_LSB    = PACKET_SIZE - 8;
+
+    // Hop field
+    localparam HOP_MSB         = PACKET_SIZE - 9;
+    localparam HOP_LSB         = PACKET_SIZE - 16;
+
+    // Source node ID
+    localparam SOURCE_MSB      = PACKET_SIZE - 17;
+    localparam SOURCE_LSB      = PACKET_SIZE - 32;
+
+    // Payload
+    localparam PAYLOAD_MSB     = PACKET_SIZE - 33;
+
     input                    clk, reset;
 
     // 0 for even polarity, 1 for odd polarity
@@ -142,6 +167,21 @@ module gold_router (
         end
     end
 
-    //extracting packets from input buffer to output buffer
+    // extracting packets from input buffer to output buffer
+    // use a flag to indicate I want to forward to a specific output buffer
+    // L2R
+    // can go to L2R, D2U, U2D, PE
+
+    wire       forwarding_E_L2R = !polarity && in_buf_E_full[4] && !in_buf_E[VC_BIT];
+    reg  [4:0] in_buf_route_E_L2R_to;
+
+    always@(*) begin
+        if(forwarding_E_L2R) begin
+            if(in_buf_E[L2R][HOP_MSB:HOP_LSB] == 8'd0) begin
+                in_buf_route_E_L2R_to[PE] = 1'b1;
+            end
+            else if(in_buf_E[DEST_X_MSB:DEST_X_LSB] != ) // dont know how to determine if it arrives as the destination x
+        end
+    end
 
 endmodule
