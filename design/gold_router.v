@@ -14,9 +14,16 @@ module gold_router (
     PE_so, PE_ro, PE_do,
 );
 
+    localparam L2R = 0;
+    localparam R2L = 1;
+    localparam D2U = 2;
+    localparam U2D = 3;
+    localparam PE  = 4;
+
     parameter PACKET_SIZE = 64;
 
     input                    clk, reset;
+    output                   polarity; // 0 for even polarity, 1 for odd polarity
 
     input                    PE_si, L2R_si, R2L_si, D2U_si, U2D_si; // channel telling router that the packet is valid
     input [PACKET_SIZE-1:0]  PE_di, L2R_di, R2L_di, D2U_di, U2D_di; // inptu packet data
@@ -26,4 +33,15 @@ module gold_router (
     output [PACKET_SIZE-1:0] PE_do, L2R_do, R2L_do, D2U_do, U2D_do; // output packet data
     input                    PE_ro, L2R_ro, R2L_ro, D2U_ro, U2D_ro; // channel telling router it can accept packet
     
+    reg [PACKET_SIZE-1:0] in_buf_E[4:0];  // even input buffer
+    reg [PACKET_SIZE-1:0] in_buf_O[4:0];  // odd  input buffer
+
+    reg [PACKET_SIZE-1:0] out_buf_E[4:0]; // even output buffer
+    reg [PACKET_SIZE-1:0] out_buf_O[4:0]; // odd  output buffer
+
+    reg [4:0] in_buf_E_full;
+    reg [4:0] in_buf_O_full;
+
+    reg [4:0] out_buf_E_full;
+    reg [4:0] out_buf_O_full;
 endmodule
