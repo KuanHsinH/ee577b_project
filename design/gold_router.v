@@ -81,8 +81,12 @@ module gold_router (
     // input buffer accepting external packets
     always@(posedge clk) begin
         if(reset) begin
-            in_buf_E_full <= 5'b0;
-            in_buf_O_full <= 5'b0;
+            in_buf_E_full <= 5'd0;
+            in_buf_O_full <= 5'd0;
+            for (integer i = 0; i < 5; i = i + 1) begin
+                in_buf_E[i] <= 0;
+                in_buf_O[i] <= 0;
+            end
         end
         else begin
             if(L2R_si && L2R_ri) begin
@@ -142,6 +146,18 @@ module gold_router (
         end
     end
 
-    //extracting packets from input buffer to output buffer
-
+    // extracting packets from input buffer to output buffer
+    // arbitration is done based on the priority of the output ports (L2R > R2L > D2U > U2D > PE)
+    always@(posedge clk) begin
+        if(reset) begin
+            out_buf_E_full <= 5'd0;
+            out_buf_O_full <= 5'd0;
+            for (integer i = 0; i < 5; i = i + 1) begin
+                out_buf_E[i] <= 0;
+                out_buf_O[i] <= 0;
+            end
+        end
+        else begin
+        end
+    end
 endmodule
