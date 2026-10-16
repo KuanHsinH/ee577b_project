@@ -106,12 +106,8 @@ module gold_router (
     // input buffer accepting external packets
     always@(posedge clk) begin
         if(reset) begin
-            in_buf_E_full <= 5'd0;
-            in_buf_O_full <= 5'd0;
-            for (integer i = 0; i < 5; i = i + 1) begin
-                in_buf_E[i] <= 0;
-                in_buf_O[i] <= 0;
-            end
+            in_buf_E_full <= 5'b0;
+            in_buf_O_full <= 5'b0;
         end
         else begin
             if(L2R_si && L2R_ri) begin
@@ -171,6 +167,21 @@ module gold_router (
         end
     end
 
-    //extracting packets from input buffer to output buffer
+    // extracting packets from input buffer to output buffer
+    // use a flag to indicate I want to forward to a specific output buffer
+    // L2R
+    // can go to L2R, D2U, U2D, PE
+
+    wire       forwarding_E_L2R = !polarity && in_buf_E_full[4] && !in_buf_E[VC_BIT];
+    reg  [4:0] in_buf_route_E_L2R_to;
+
+    always@(*) begin
+        if(forwarding_E_L2R) begin
+            if(in_buf_E[L2R][HOP_MSB:HOP_LSB] == 8'd0) begin
+                in_buf_route_E_L2R_to[PE] = 1'b1;
+            end
+            else if(in_buf_E[DEST_X_MSB:DEST_X_LSB] != ) // dont know how to determine if it arrives as the destination x
+        end
+    end
 
 endmodule
