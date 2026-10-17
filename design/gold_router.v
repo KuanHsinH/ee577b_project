@@ -63,7 +63,9 @@ module gold_router (
 
     // 0 for even polarity, 1 for odd polarity
     // int_vc = polarity, ext_vc = ~polarity
+
     output reg               polarity;
+    wire                     int_vc = polarity;  
     wire                     ext_vc = ~polarity; 
 
     input                    PE_si, L2R_si, R2L_si, D2U_si, U2D_si; // channel telling router that the packet is valid
@@ -73,29 +75,12 @@ module gold_router (
     output                   PE_so, L2R_so, R2L_so, D2U_so, U2D_so; // router telling channel it has packet to send
     output [PACKET_SIZE-1:0] PE_do, L2R_do, R2L_do, D2U_do, U2D_do; // output packet data
     input                    PE_ro, L2R_ro, R2L_ro, D2U_ro, U2D_ro; // channel telling router it can accept packet
-    
-    wire 
 
-    reg [PACKET_SIZE-1:0] in_buf_E[4:0];  // even input buffer
-    reg [PACKET_SIZE-1:0] in_buf_O[4:0];  // odd input buffer
+    wire [4:0] in_buf_full_vc0;
+    wire [4:0] in_buf_full_vc1;
 
-    reg [4:0] in_buf_E_full;
-    reg [4:0] in_buf_O_full;
-
-    reg [PACKET_SIZE-1:0] out_buf_E[4:0]; // even output buffer
-    reg [PACKET_SIZE-1:0] out_buf_O[4:0]; // odd output buffer
-
-    reg [4:0] out_buf_E_full;
-    reg [4:0] out_buf_O_full;
-
-    // input control
-    always @(*) begin
-        L2R_ri = polarity ? ~in_buf_E_full[L2R] : ~in_buf_O_full[L2R];
-        R2L_ri = polarity ? ~in_buf_E_full[R2L] : ~in_buf_O_full[R2L];
-        D2U_ri = polarity ? ~in_buf_E_full[D2U] : ~in_buf_O_full[D2U];
-        U2D_ri = polarity ? ~in_buf_E_full[U2D] : ~in_buf_O_full[U2D];
-        PE_ri  = polarity ? ~in_buf_E_full[PE]  : ~in_buf_O_full[PE];
-    end
+    reg  [4:0] in_buf_we_vc0;
+    reg  [4:0] in_buf_we_vc1;
 
     // polarity control
     always @(posedge clk) begin
@@ -103,85 +88,162 @@ module gold_router (
         else        polarity <= ~polarity;
     end
 
-    // input buffer accepting external packets
-    always@(posedge clk) begin
-        if(reset) begin
-            in_buf_E_full <= 5'b0;
-            in_buf_O_full <= 5'b0;
+    // ri
+    always@(*) begin
+        L2R_ri = ext_vc ? !in_buf_full_vc1[L2R] : !in_buf_full_vc0[L2R];
+        R2L_ri = ext_vc ? !in_buf_full_vc1[R2L] : !in_buf_full_vc0[R2L];
+        D2U_ri = ext_vc ? !in_buf_full_vc1[D2U] : !in_buf_full_vc0[D2U];
+        U2D_ri = ext_vc ? !in_buf_full_vc1[U2D] : !in_buf_full_vc0[U2D];
+        PE_ri  = ext_vc ? !in_buf_full_vc1[PE]  : !in_buf_full_vc0[PE];
+    end
+
+    // we for in_buf
+    always@(*) begin
+        if(ext_vc == 1'b0) begin
+            if(L2R_si && L2R_ri) in_buf_we_vc0[L2R] = 1'b1;
+            else                 in_buf_we_vc0[L2R] = 1'b0;
+
+            if(R2L_si && R2L_ri) in_buf_we_vc0[R2L] = 1'b1;
+            else                 in_buf_we_vc0[R2L] = 1'b0;
+
+            if(D2U_si && D2U_ri) in_buf_we_vc0[D2U] = 1'b1;
+            else                 in_buf_we_vc0[D2U] = 1'b0;
+
+            if(U2D_si && U2D_ri) in_buf_we_vc0[U2D] = 1'b1;
+            else                 in_buf_we_vc0[U2D] = 1'b0;
+
+            if(PE_si && PE_ri)   in_buf_we_vc0[PE]  = 1'b1;
+            else                 in_buf_we_vc0[PE]  = 1'b0;
         end
         else begin
-            if(L2R_si && L2R_ri) begin
-                if(ext_vc) begin
-                    in_buf_O[L2R]       <= L2R_di;
-                    in_buf_O_full[L2R]  <= 1'b1;
-                end
-                else begin
-                    in_buf_E[L2R]       <= L2R_di;
-                    in_buf_E_full[L2R]  <= 1'b1;
-                end
-            end
+            if(L2R_si && L2R_ri) in_buf_we_vc1[L2R] = 1'b1;
+            else                 in_buf_we_vc1[L2R] = 1'b0;
 
-            if(R2L_si && R2L_ri) begin
-                if(ext_vc) begin
-                    in_buf_O[R2L]       <= R2L_di;
-                    in_buf_O_full[R2L]  <= 1'b1;
-                end
-                else begin
-                    in_buf_E[R2L]       <= R2L_di;
-                    in_buf_E_full[R2L]  <= 1'b1;
-                end
-            end
+            if(R2L_si && R2L_ri) in_buf_we_vc1[R2L] = 1'b1;
+            else                 in_buf_we_vc1[R2L] = 1'b0;
 
-            if(D2U_si && D2U_ri) begin
-                if(ext_vc) begin
-                    in_buf_O[D2U]       <= D2U_di;
-                    in_buf_O_full[D2U]  <= 1'b1;
-                end
-                else begin
-                    in_buf_E[D2U]       <= D2U_di;
-                    in_buf_E_full[D2U]  <= 1'b1;
-                end
-            end
+            if(D2U_si && D2U_ri) in_buf_we_vc1[D2U] = 1'b1;
+            else                 in_buf_we_vc1[D2U] = 1'b0;
 
-            if(U2D_si && U2D_ri) begin
-                if(ext_vc) begin
-                    in_buf_O[U2D]       <= U2D_di;
-                    in_buf_O_full[U2D]  <= 1'b1;
-                end
-                else begin
-                    in_buf_E[U2D]       <= U2D_di;
-                    in_buf_E_full[U2D]  <= 1'b1;
-                end
-            end
+            if(U2D_si && U2D_ri) in_buf_we_vc1[U2D] = 1'b1;
+            else                 in_buf_we_vc1[U2D] = 1'b0;
 
-            if(PE_si && PE_ri) begin
-                if(ext_vc) begin
-                    in_buf_O[PE]        <= PE_di;
-                    in_buf_O_full[PE]   <= 1'b1;
-                end
-                else begin
-                    in_buf_E[PE]        <= PE_di;
-                    in_buf_E_full[PE]   <= 1'b1;
-                end
-            end
+            if(PE_si && PE_ri)   in_buf_we_vc1[PE]  = 1'b1;
+            else                 in_buf_we_vc1[PE]  = 1'b0;
         end
     end
 
-    // extracting packets from input buffer to output buffer
-    // use a flag to indicate I want to forward to a specific output buffer
-    // L2R
-    // can go to L2R, D2U, U2D, PE
+    // vc0 input buffers
+    in_buf in_buf_L2R_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc0[L2R]), 
+        .re(),
+        .data_in(L2R_di),
+        .full(in_buf_full_vc0[L2R]), 
+        .data_out()
+    );
 
-    wire       forwarding_E_L2R = !polarity && in_buf_E_full[4] && !in_buf_E[VC_BIT];
-    reg  [4:0] in_buf_route_E_L2R_to;
+    in_buf in_buf_R2L_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc0[R2L]), 
+        .re(),
+        .data_in(R2L_di),
+        .full(in_buf_full_vc0[R2L]), 
+        .data_out()
+    );
 
-    always@(*) begin
-        if(forwarding_E_L2R) begin
-            if(in_buf_E[L2R][HOP_MSB:HOP_LSB] == 8'd0) begin
-                in_buf_route_E_L2R_to[PE] = 1'b1;
-            end
-            else if(in_buf_E[DEST_X_MSB:DEST_X_LSB] != ) // dont know how to determine if it arrives as the destination x
-        end
-    end
+    in_buf in_buf_D2U_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc0[D2U]), 
+        .re(),
+        .data_in(D2U_di),
+        .full(in_buf_full_vc0[D2U]), 
+        .data_out()
+    );
 
+    in_buf in_buf_U2D_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc0[U2D]), 
+        .re(),
+        .data_in(U2D_di),
+        .full(in_buf_full_vc0[U2D]), 
+        .data_out()
+    );
+
+    in_buf in_buf_PE_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc0[PE]), 
+        .re(),
+        .data_in(PE_di),
+        .full(in_buf_full_vc0[PE]), 
+        .data_out()
+    );
+
+    //vc1 input buffers
+    in_buf in_buf_L2R_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc1[L2R]), 
+        .re(),
+        .data_in(L2R_di),
+        .full(in_buf_full_vc1[L2R]), 
+        .data_out()
+    );
+
+    in_buf in_buf_R2L_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc1[R2L]), 
+        .re(),
+        .data_in(R2L_di),
+        .full(in_buf_full_vc1[R2L]), 
+        .data_out()
+    );
+
+    in_buf in_buf_D2U_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc1[D2U]), 
+        .re(),
+        .data_in(D2U_di),
+        .full(in_buf_full_vc1[D2U]), 
+        .data_out()
+    );
+
+    in_buf in_buf_U2D_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc1[U2D]), 
+        .re(),
+        .data_in(U2D_di),
+        .full(in_buf_full_vc1[U2D]), 
+        .data_out()
+    );
+
+    in_buf in_buf_PE_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(in_buf_we_vc1[PE]), 
+        .re(),
+        .data_in(PE_di),
+        .full(in_buf_full_vc1[PE]), 
+        .data_out()
+    );
+
+    
 endmodule
