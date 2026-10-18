@@ -1,4 +1,9 @@
-module gold_router (
+module gold_router #(
+    parameter PACKET_SIZE = 64,
+    parameter ROUTER_X = 0,
+    parameter ROUTER_Y = 0
+
+)(
     clk, reset, polarity,
 
     L2R_si, L2R_ri, L2R_di,
@@ -32,7 +37,6 @@ module gold_router (
     [47:32]       [P-17:P-32]      source           source node number S (0..15)
     [31:0]        [P-33:0]         payload          unique packet ID
     */
-    parameter PACKET_SIZE = 64;
 
     // Single-bit fields
     localparam VC_BIT          = PACKET_SIZE - 1;
@@ -76,6 +80,13 @@ module gold_router (
     output [PACKET_SIZE-1:0] PE_do, L2R_do, R2L_do, D2U_do, U2D_do; // output packet data
     input                    PE_ro, L2R_ro, R2L_ro, D2U_ro, U2D_ro; // channel telling router it can accept packet
 
+    // polarity control
+    always @(posedge clk) begin
+        if(reset)   polarity <= 0;
+        else        polarity <= ~polarity;
+    end
+
+    // 10 input buffers
     wire [4:0] in_buf_full_vc0;
     wire [4:0] in_buf_full_vc1;
 
@@ -84,12 +95,6 @@ module gold_router (
 
     wire [PACKET_SIZE-1:0] in_buf_do_vc0[4:0];
     wire [PACKET_SIZE-1:0] in_buf_do_vc1[4:0];
-
-    // polarity control
-    always @(posedge clk) begin
-        if(reset)   polarity <= 0;
-        else        polarity <= ~polarity;
-    end
 
     // ri
     always@(*) begin
@@ -137,7 +142,7 @@ module gold_router (
     end
 
     // vc0 input buffers
-    in_buf in_buf_L2R_vc0 
+    buf in_buf_L2R_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -148,7 +153,7 @@ module gold_router (
         .data_out(in_buf_do_vc0[L2R])
     );
 
-    in_buf in_buf_R2L_vc0 
+    buf in_buf_R2L_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -159,7 +164,7 @@ module gold_router (
         .data_out(in_buf_do_vc0[R2L])
     );
 
-    in_buf in_buf_D2U_vc0 
+    buf in_buf_D2U_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -170,7 +175,7 @@ module gold_router (
         .data_out(in_buf_do_vc0[D2U])
     );
 
-    in_buf in_buf_U2D_vc0 
+    buf in_buf_U2D_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -181,7 +186,7 @@ module gold_router (
         .data_out(in_buf_do_vc0[U2D])
     );
 
-    in_buf in_buf_PE_vc0 
+    buf in_buf_PE_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -193,7 +198,7 @@ module gold_router (
     );
 
     //vc1 input buffers
-    in_buf in_buf_L2R_vc1 
+    buf in_buf_L2R_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -204,7 +209,7 @@ module gold_router (
         .data_out(in_buf_do_vc1[L2R])
     );
 
-    in_buf in_buf_R2L_vc1 
+    buf in_buf_R2L_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -215,7 +220,7 @@ module gold_router (
         .data_out(in_buf_do_vc1[R2L])
     );
 
-    in_buf in_buf_D2U_vc1 
+    buf in_buf_D2U_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -226,7 +231,7 @@ module gold_router (
         .data_out(in_buf_do_vc1[D2U])
     );
 
-    in_buf in_buf_U2D_vc1 
+    buf in_buf_U2D_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -237,7 +242,7 @@ module gold_router (
         .data_out(in_buf_do_vc1[U2D])
     );
 
-    in_buf in_buf_PE_vc1 
+    buf in_buf_PE_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -253,9 +258,396 @@ module gold_router (
     wire req_R2L_R2L, req_R2L_D2U, req_R2L_U2D, req_R2L_PE;
     wire req_D2U_D2U, req_D2U_PE;
     wire req_U2D_U2D, req_U2D_PE;
+    wire req_PE_L2R,  req_PE_R2L,  req_PE_D2U,  req_PE_U2D;
 
+
+    // CAUTION!!! havent add if output_buffer_empty
     always@(*) begin
-        
+
+        {req_L2R_L2R, req_L2R_D2U, req_L2R_U2D, req_L2R_PE} = 4'd0;
+        {req_R2L_R2L, req_R2L_D2U, req_R2L_U2D, req_R2L_PE} = 4'd0;
+        {req_D2U_D2U, req_D2U_PE}                           = 2'd0;
+        {req_U2D_U2D, req_U2D_PE}                           = 2'd0;
+        {req_PE_L2R,  req_PE_R2L,  req_PE_D2U,  req_PE_U2D} = 4'd0;
+
+        ///////////////////////////
+        /////////  vc0  ///////////
+        ///////////////////////////
+
+        if(int_vc == 1'b0) begin
+
+            // L2R vc0 request logic
+            if(!out_buf_full_vc0[L2R] &&
+            in_buf_full_vc0[L2R] &&
+            in_buf_do_vc0[L2R][HOP_LSB] &&
+            in_buf_do_vc0[L2R][DEST_X_MSB:DEST_X_LSB] > ROUTER_X) begin
+                req_L2R_L2R = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[U2D] &&
+            in_buf_full_vc0[L2R] &&
+            in_buf_do_vc0[L2R][HOP_LSB] &&
+            in_buf_do_vc0[L2R][DEST_Y_MSB:DEST_Y_LSB] > ROUTER_Y) begin
+                req_L2R_U2D = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[D2U] &&
+            in_buf_full_vc0[L2R] &&
+            in_buf_do_vc0[L2R][HOP_LSB] &&
+            in_buf_do_vc0[L2R][DEST_Y_MSB:DEST_Y_LSB] < ROUTER_Y) begin
+                req_L2R_D2U = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[PE] &&
+            in_buf_full_vc0[L2R] &&
+            in_buf_do_vc0[L2R][HOP_LSB] == 1'b0) begin
+                req_L2R_PE = 1'b1;
+            end
+
+            //////////////////////////////////////////
+
+            // R2L vc0 request logic
+            if(!out_buf_full_vc0[R2L] &&
+            in_buf_full_vc0[R2L] &&
+            in_buf_do_vc0[R2L][HOP_LSB] &&
+            in_buf_do_vc0[R2L][DEST_X_MSB:DEST_X_LSB] < ROUTER_X) begin
+                req_R2L_R2L = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[U2D] &&
+            in_buf_full_vc0[R2L] &&
+            in_buf_do_vc0[R2L][HOP_LSB] &&
+            in_buf_do_vc0[R2L][DEST_Y_MSB:DEST_Y_LSB] > ROUTER_Y) begin
+                req_R2L_U2D = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[D2U] &&
+            in_buf_full_vc0[R2L] &&
+            in_buf_do_vc0[R2L][HOP_LSB] &&
+            in_buf_do_vc0[R2L][DEST_Y_MSB:DEST_Y_LSB] < ROUTER_Y) begin
+                req_R2L_D2U = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[PE] &&
+            in_buf_full_vc0[R2L] &&
+            in_buf_do_vc0[R2L][HOP_LSB] == 1'b0) begin
+                req_R2L_PE = 1'b1;
+            end
+
+            //////////////////////////////////////////
+
+            // D2U vc0 request logic
+            if(!out_buf_full_vc0[D2U] &&
+            in_buf_full_vc0[D2U] &&
+            in_buf_do_vc0[D2U][HOP_LSB] &&
+            in_buf_do_vc0[D2U][DEST_Y_MSB:DEST_Y_LSB] < ROUTER_Y) begin
+                req_D2U_D2U = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[PE] &&
+            in_buf_full_vc0[D2U] &&
+            in_buf_do_vc0[D2U][HOP_LSB] == 1'b0) begin
+                req_D2U_PE = 1'b1;
+            end
+
+            //////////////////////////////////////////
+
+            // U2D vc0 request logic
+            if(!out_buf_full_vc0[U2D] &&
+            in_buf_full_vc0[U2D] &&
+            in_buf_do_vc0[U2D][HOP_LSB] &&
+            in_buf_do_vc0[U2D][DEST_Y_MSB:DEST_Y_LSB] > ROUTER_Y) begin
+                req_U2D_U2D = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[PE] &&
+            in_buf_full_vc0[U2D] &&
+            in_buf_do_vc0[U2D][HOP_LSB] == 1'b0) begin
+                req_U2D_PE = 1'b1;
+            end
+
+            //////////////////////////////////////////
+
+            // PE vc0 request logic
+            if(!out_buf_full_vc0[L2R] &&
+            in_buf_full_vc0[PE] &&
+            in_buf_do_vc0[PE][HOP_LSB] &&
+            in_buf_do_vc0[PE][DEST_X_MSB:DEST_X_LSB] > ROUTER_X) begin
+                req_PE_L2R = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[R2L] &&
+            in_buf_full_vc0[PE] &&
+            in_buf_do_vc0[PE][HOP_LSB] &&
+            in_buf_do_vc0[PE][DEST_X_MSB:DEST_X_LSB] < ROUTER_X) begin
+                req_PE_R2L = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[U2D] &&
+            in_buf_full_vc0[PE] &&
+            in_buf_do_vc0[PE][HOP_LSB] &&
+            in_buf_do_vc0[PE][DEST_Y_MSB:DEST_Y_LSB] > ROUTER_Y) begin
+                req_PE_U2D = 1'b1;
+            end
+
+            else if(!out_buf_full_vc0[D2U] &&
+            in_buf_full_vc0[PE] &&
+            in_buf_do_vc0[PE][HOP_LSB] &&
+            in_buf_do_vc0[PE][DEST_Y_MSB:DEST_Y_LSB] < ROUTER_Y) begin
+                req_PE_D2U = 1'b1;
+            end
+        end
+
+        ///////////////////////////
+        /////////  vc1  ///////////
+        ///////////////////////////
+
+        else begin
+            // L2R vc1 request logic
+            if(!out_buf_full_vc1[L2R] &&
+            in_buf_full_vc1[L2R] &&
+            in_buf_do_vc1[L2R][HOP_LSB] &&
+            in_buf_do_vc1[L2R][DEST_X_MSB:DEST_X_LSB] > ROUTER_X) begin
+                req_L2R_L2R = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[U2D] &&
+            in_buf_full_vc1[L2R] &&
+            in_buf_do_vc1[L2R][HOP_LSB] &&
+            in_buf_do_vc1[L2R][DEST_Y_MSB:DEST_Y_LSB] > ROUTER_Y) begin
+                req_L2R_U2D = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[D2U] &&
+            in_buf_full_vc1[L2R] &&
+            in_buf_do_vc1[L2R][HOP_LSB] &&
+            in_buf_do_vc1[L2R][DEST_Y_MSB:DEST_Y_LSB] < ROUTER_Y) begin
+                req_L2R_D2U = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[PE] &&
+            in_buf_full_vc1[L2R] &&
+            in_buf_do_vc1[L2R][HOP_LSB] == 1'b0) begin
+                req_L2R_PE = 1'b1;
+            end
+
+            //////////////////////////////////////////
+
+            // R2L vc1 request logic
+            if(!out_buf_full_vc1[R2L] &&
+            in_buf_full_vc1[R2L] &&
+            in_buf_do_vc1[R2L][HOP_LSB] &&
+            in_buf_do_vc1[R2L][DEST_X_MSB:DEST_X_LSB] < ROUTER_X) begin
+                req_R2L_R2L = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[U2D] &&
+            in_buf_full_vc1[R2L] &&
+            in_buf_do_vc1[R2L][HOP_LSB] &&
+            in_buf_do_vc1[R2L][DEST_Y_MSB:DEST_Y_LSB] > ROUTER_Y) begin
+                req_R2L_U2D = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[D2U] &&
+            in_buf_full_vc1[R2L] &&
+            in_buf_do_vc1[R2L][HOP_LSB] &&
+            in_buf_do_vc1[R2L][DEST_Y_MSB:DEST_Y_LSB] < ROUTER_Y) begin
+                req_R2L_D2U = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[PE] &&
+            in_buf_full_vc1[R2L] &&
+            in_buf_do_vc1[R2L][HOP_LSB] == 1'b0) begin
+                req_R2L_PE = 1'b1;
+            end
+
+            //////////////////////////////////////////
+
+            // D2U vc1 request logic
+            if(!out_buf_full_vc1[D2U] &&
+            in_buf_full_vc1[D2U] &&
+            in_buf_do_vc1[D2U][HOP_LSB] &&
+            in_buf_do_vc1[D2U][DEST_Y_MSB:DEST_Y_LSB] < ROUTER_Y) begin
+                req_D2U_D2U = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[PE] &&
+            in_buf_full_vc1[D2U] &&
+            in_buf_do_vc1[D2U][HOP_LSB] == 1'b0) begin
+                req_D2U_PE = 1'b1;
+            end
+
+            //////////////////////////////////////////
+
+            // U2D vc1 request logic
+            if(!out_buf_full_vc1[U2D] &&
+            in_buf_full_vc1[U2D] &&
+            in_buf_do_vc1[U2D][HOP_LSB] &&
+            in_buf_do_vc1[U2D][DEST_Y_MSB:DEST_Y_LSB] > ROUTER_Y) begin
+                req_U2D_U2D = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[PE] &&
+            in_buf_full_vc1[U2D] &&
+            in_buf_do_vc1[U2D][HOP_LSB] == 1'b0) begin
+                req_U2D_PE = 1'b1;
+            end
+
+            //////////////////////////////////////////
+
+            // PE vc1 request logic
+            if(!out_buf_full_vc1[L2R] &&
+            in_buf_full_vc1[PE] &&
+            in_buf_do_vc1[PE][HOP_LSB] &&
+            in_buf_do_vc1[PE][DEST_X_MSB:DEST_X_LSB] > ROUTER_X) begin
+                req_PE_L2R = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[R2L] &&
+            in_buf_full_vc1[PE] &&
+            in_buf_do_vc1[PE][HOP_LSB] &&
+            in_buf_do_vc1[PE][DEST_X_MSB:DEST_X_LSB] < ROUTER_X) begin
+                req_PE_R2L = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[U2D] &&
+            in_buf_full_vc1[PE] &&
+            in_buf_do_vc1[PE][HOP_LSB] &&
+            in_buf_do_vc1[PE][DEST_Y_MSB:DEST_Y_LSB] > ROUTER_Y) begin
+                req_PE_U2D = 1'b1;
+            end
+
+            else if(!out_buf_full_vc1[D2U] &&
+            in_buf_full_vc1[PE] &&
+            in_buf_do_vc1[PE][HOP_LSB] &&
+            in_buf_do_vc1[PE][DEST_Y_MSB:DEST_Y_LSB] < ROUTER_Y) begin
+                req_PE_D2U = 1'b1;
+            end
+        end
     end
+
+    wire [4:0] out_buf_full_vc0;
+    wire [4:0] out_buf_full_vc1;
+
+    reg  [4:0] out_buf_we_vc0;
+    reg  [4:0] out_buf_we_vc1;
+
+    reg  [PACKET_SIZE-1:0] out_buf_di_vc0[4:0];
+    reg  [PACKET_SIZE-1:0] out_buf_di_vc1[4:0];
+
+    wire [PACKET_SIZE-1:0] out_buf_do_vc0[4:0];
+    wire [PACKET_SIZE-1:0] out_buf_do_vc1[4:0];
+
+    // vc0 output buffers
+    buf out_buf_L2R_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc0[L2R]), 
+        .re(),
+        .data_in(out_buf_di_vc0[L2R]),
+        .full(out_buf_full_vc0[L2R]), 
+        .data_out(out_buf_do_vc0[L2R])
+    );
+
+    buf out_buf_R2L_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc0[R2L]), 
+        .re(),
+        .data_in(out_buf_di_vc0[R2L]),
+        .full(out_buf_full_vc0[R2L]), 
+        .data_out(out_buf_do_vc0[R2L])
+    );
+
+    buf out_buf_D2U_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc0[D2U]), 
+        .re(),
+        .data_in(out_buf_di_vc0[D2U]),
+        .full(out_buf_full_vc0[D2U]), 
+        .data_out(out_buf_do_vc0[D2U])
+    );
+
+    buf out_buf_U2D_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc0[U2D]), 
+        .re(),
+        .data_in(out_buf_di_vc0[U2D]),
+        .full(out_buf_full_vc0[U2D]), 
+        .data_out(out_buf_do_vc0[U2D])
+    );
+
+    buf out_buf_PE_vc0 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc0[PE]), 
+        .re(),
+        .data_in(out_buf_di_vc0[PE]),
+        .full(out_buf_full_vc0[PE]), 
+        .data_out(out_buf_do_vc0[PE])
+    );
+
+    // vc1 output buffers
+    buf out_buf_L2R_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc1[L2R]), 
+        .re(),
+        .data_in(out_buf_di_vc1[L2R]),
+        .full(out_buf_full_vc1[L2R]), 
+        .data_out(out_buf_do_vc1[L2R])
+    );
+
+    buf out_buf_R2L_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc1[R2L]), 
+        .re(),
+        .data_in(out_buf_di_vc1[R2L]),
+        .full(out_buf_full_vc1[R2L]), 
+        .data_out(out_buf_do_vc1[R2L])
+    );
+
+    buf out_buf_D2U_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc1[D2U]), 
+        .re(),
+        .data_in(out_buf_di_vc1[D2U]),
+        .full(out_buf_full_vc1[D2U]), 
+        .data_out(out_buf_do_vc1[D2U])
+    );
+
+    buf out_buf_U2D_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc1[U2D]), 
+        .re(),
+        .data_in(out_buf_di_vc1[U2D]),
+        .full(out_buf_full_vc1[U2D]), 
+        .data_out(out_buf_do_vc1[U2D])
+    );
+
+    buf out_buf_PE_vc1 
+    (
+        .clk(clk), 
+        .reset(reset),
+        .we(out_buf_we_vc1[PE]), 
+        .re(),
+        .data_in(out_buf_di_vc1[PE]),
+        .full(out_buf_full_vc1[PE]), 
+        .data_out(out_buf_do_vc1[PE])
+    );
     
 endmodule
