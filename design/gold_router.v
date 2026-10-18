@@ -82,6 +82,9 @@ module gold_router (
     reg  [4:0] in_buf_we_vc0;
     reg  [4:0] in_buf_we_vc1;
 
+    wire [PACKET_SIZE-1:0] in_buf_do_vc0[4:0];
+    wire [PACKET_SIZE-1:0] in_buf_do_vc1[4:0];
+
     // polarity control
     always @(posedge clk) begin
         if(reset)   polarity <= 0;
@@ -142,7 +145,7 @@ module gold_router (
         .re(),
         .data_in(L2R_di),
         .full(in_buf_full_vc0[L2R]), 
-        .data_out()
+        .data_out(in_buf_do_vc0[L2R])
     );
 
     in_buf in_buf_R2L_vc0 
@@ -153,7 +156,7 @@ module gold_router (
         .re(),
         .data_in(R2L_di),
         .full(in_buf_full_vc0[R2L]), 
-        .data_out()
+        .data_out(in_buf_do_vc0[R2L])
     );
 
     in_buf in_buf_D2U_vc0 
@@ -164,7 +167,7 @@ module gold_router (
         .re(),
         .data_in(D2U_di),
         .full(in_buf_full_vc0[D2U]), 
-        .data_out()
+        .data_out(in_buf_do_vc0[D2U])
     );
 
     in_buf in_buf_U2D_vc0 
@@ -175,7 +178,7 @@ module gold_router (
         .re(),
         .data_in(U2D_di),
         .full(in_buf_full_vc0[U2D]), 
-        .data_out()
+        .data_out(in_buf_do_vc0[U2D])
     );
 
     in_buf in_buf_PE_vc0 
@@ -186,7 +189,7 @@ module gold_router (
         .re(),
         .data_in(PE_di),
         .full(in_buf_full_vc0[PE]), 
-        .data_out()
+        .data_out(in_buf_do_vc0[PE])
     );
 
     //vc1 input buffers
@@ -198,7 +201,7 @@ module gold_router (
         .re(),
         .data_in(L2R_di),
         .full(in_buf_full_vc1[L2R]), 
-        .data_out()
+        .data_out(in_buf_do_vc1[L2R])
     );
 
     in_buf in_buf_R2L_vc1 
@@ -209,7 +212,7 @@ module gold_router (
         .re(),
         .data_in(R2L_di),
         .full(in_buf_full_vc1[R2L]), 
-        .data_out()
+        .data_out(in_buf_do_vc1[R2L])
     );
 
     in_buf in_buf_D2U_vc1 
@@ -220,7 +223,7 @@ module gold_router (
         .re(),
         .data_in(D2U_di),
         .full(in_buf_full_vc1[D2U]), 
-        .data_out()
+        .data_out(in_buf_do_vc1[D2U])
     );
 
     in_buf in_buf_U2D_vc1 
@@ -231,7 +234,7 @@ module gold_router (
         .re(),
         .data_in(U2D_di),
         .full(in_buf_full_vc1[U2D]), 
-        .data_out()
+        .data_out(in_buf_do_vc1[U2D])
     );
 
     in_buf in_buf_PE_vc1 
@@ -242,8 +245,17 @@ module gold_router (
         .re(),
         .data_in(PE_di),
         .full(in_buf_full_vc1[PE]), 
-        .data_out()
+        .data_out(in_buf_do_vc1[PE])
     );
 
+    // input buffers requesting signals
+    wire req_L2R_L2R, req_L2R_D2U, req_L2R_U2D, req_L2R_PE;
+    wire req_R2L_R2L, req_R2L_D2U, req_R2L_U2D, req_R2L_PE;
+    wire req_D2U_D2U, req_D2U_PE;
+    wire req_U2D_U2D, req_U2D_PE;
+
+    always@(*) begin
+        
+    end
     
 endmodule
