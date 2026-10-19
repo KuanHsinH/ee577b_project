@@ -16,7 +16,7 @@ module gold_router #(
     R2L_so, R2L_ro, R2L_do,
     D2U_so, D2U_ro, D2U_do,
     U2D_so, U2D_ro, U2D_do,
-    PE_so, PE_ro, PE_do,
+    PE_so, PE_ro, PE_do
 );
 
     localparam L2R = 4;
@@ -92,6 +92,9 @@ module gold_router #(
 
     reg  [4:0] in_buf_we_vc0;
     reg  [4:0] in_buf_we_vc1;
+
+    reg  [4:0] in_buf_re_vc0;
+    reg  [4:0] in_buf_re_vc1;
 
     wire [PACKET_SIZE-1:0] in_buf_do_vc0[4:0];
     wire [PACKET_SIZE-1:0] in_buf_do_vc1[4:0];
@@ -254,14 +257,107 @@ module gold_router #(
     );
 
     // input buffers requesting signals
-    wire req_L2R_L2R, req_L2R_D2U, req_L2R_U2D, req_L2R_PE;
-    wire req_R2L_R2L, req_R2L_D2U, req_R2L_U2D, req_R2L_PE;
-    wire req_D2U_D2U, req_D2U_PE;
-    wire req_U2D_U2D, req_U2D_PE;
-    wire req_PE_L2R,  req_PE_R2L,  req_PE_D2U,  req_PE_U2D;
+    reg req_L2R_L2R, req_L2R_D2U, req_L2R_U2D, req_L2R_PE;
+    reg req_R2L_R2L, req_R2L_D2U, req_R2L_U2D, req_R2L_PE;
+    reg req_D2U_D2U, req_D2U_PE;
+    reg req_U2D_U2D, req_U2D_PE;
+    reg req_PE_L2R,  req_PE_R2L,  req_PE_D2U,  req_PE_U2D;
 
+    // grant signals
+    wire grant_L2R_L2R, grant_PE_L2R;
+    wire grant_R2L_R2L, grant_PE_R2L;
+    wire grant_D2U_D2U, grant_L2R_D2U, grant_R2L_D2U, grant_PE_D2U;
+    wire grant_U2D_U2D, grant_L2R_U2D, grant_R2L_U2D, grant_PE_U2D;
+    wire grant_L2R_PE,  grant_R2L_PE,  grant_D2U_PE,  grant_U2D_PE;
 
-    // CAUTION!!! havent add if output_buffer_empty
+    arbiter arbiter_out_buf_L2R
+    (
+        .clk(clk),
+        .reset(reset),
+        .int_vc(int_vc),
+        .req_0(1'b0), 
+        .req_1(1'b0), 
+        .req_2(req_L2R_L2R), 
+        .req_3(req_PE_L2R),
+        .grant_0(), 
+        .grant_1(), 
+        .grant_2(grant_L2R_L2R), 
+        .grant_3(grant_PE_L2R)
+    );
+
+    arbiter arbiter_out_buf_R2L
+    (
+        .clk(clk),
+        .reset(reset),
+        .int_vc(int_vc),
+        .req_0(1'b0), 
+        .req_1(1'b0), 
+        .req_2(req_R2L_R2L), 
+        .req_3(req_PE_R2L),
+        .grant_0(), 
+        .grant_1(), 
+        .grant_2(grant_R2L_R2L), 
+        .grant_3(grant_PE_R2L)
+    );
+
+    arbiter arbiter_out_buf_D2U
+    (
+        .clk(clk),
+        .reset(reset),
+        .int_vc(int_vc),
+        .req_0(req_D2U_D2U), 
+        .req_1(req_R2L_D2U), 
+        .req_2(req_L2R_D2U), 
+        .req_3(req_PE_D2U),
+        .grant_0(grant_D2U_D2U), 
+        .grant_1(grant_L2R_D2U), 
+        .grant_2(grant_R2L_D2U), 
+        .grant_3(grant_PE_D2U)
+    );
+
+    arbiter arbiter_out_buf_U2D
+    (
+        .clk(clk),
+        .reset(reset),
+        .int_vc(int_vc),
+        .req_0(req_U2D_U2D), 
+        .req_1(req_R2L_U2D), 
+        .req_2(req_L2R_U2D), 
+        .req_3(req_PE_U2D),
+        .grant_0(grant_U2D_U2D), 
+        .grant_1(grant_L2R_U2D), 
+        .grant_2(grant_R2L_U2D), 
+        .grant_3(grant_PE_U2D)
+    );
+
+    arbiter arbiter_out_buf_PE
+    (
+        .clk(clk),
+        .reset(reset),
+        .int_vc(int_vc),
+        .req_0(req_PE_U2D), 
+        .req_1(req_PE_D2U), 
+        .req_2(req_PE_R2L), 
+        .req_3(req_PE_L2R),
+        .grant_0(grant_U2D_PE), 
+        .grant_1(grant_D2U_PE), 
+        .grant_2(grant_R2L_PE), 
+        .grant_3(grant_L2R_PE)
+    );
+
+    wire [4:0] out_buf_full_vc0;
+    wire [4:0] out_buf_full_vc1;
+
+    reg  [4:0] out_buf_we_vc0;
+    reg  [4:0] out_buf_we_vc1;
+
+    reg  [PACKET_SIZE-1:0] out_buf_di_vc0[4:0];
+    reg  [PACKET_SIZE-1:0] out_buf_di_vc1[4:0];
+
+    wire [PACKET_SIZE-1:0] out_buf_do_vc0[4:0];
+    wire [PACKET_SIZE-1:0] out_buf_do_vc1[4:0];
+
+    // input forwarding to output buffers
     always@(*) begin
 
         {req_L2R_L2R, req_L2R_D2U, req_L2R_U2D, req_L2R_PE} = 4'd0;
@@ -526,17 +622,7 @@ module gold_router #(
         end
     end
 
-    wire [4:0] out_buf_full_vc0;
-    wire [4:0] out_buf_full_vc1;
-
-    reg  [4:0] out_buf_we_vc0;
-    reg  [4:0] out_buf_we_vc1;
-
-    reg  [PACKET_SIZE-1:0] out_buf_di_vc0[4:0];
-    reg  [PACKET_SIZE-1:0] out_buf_di_vc1[4:0];
-
-    wire [PACKET_SIZE-1:0] out_buf_do_vc0[4:0];
-    wire [PACKET_SIZE-1:0] out_buf_do_vc1[4:0];
+    
 
     // vc0 output buffers
     buffer out_buf_L2R_vc0 
@@ -649,5 +735,261 @@ module gold_router #(
         .full(out_buf_full_vc1[PE]), 
         .data_out(out_buf_do_vc1[PE])
     );
+
+    always@(*) begin
+
+        in_buf_re_vc0 = 4'd0;
+        in_buf_re_vc1 = 4'd0;
+
+        // CAUTION: no initialization for out_buf_di_vc0 and out_buf_di_vc1, so they will hold their previous values if no grant is given
+
+        // vc0
+        if(int_vc == 1'b0) begin
+            if(grant_L2R_L2R) begin
+                in_buf_re_vc0[L2R]  = 1'b1;
+                out_buf_we_vc0[L2R] = 1'b1;
+                out_buf_di_vc0[L2R] = {in_buf_do_vc0[L2R][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[L2R][HOP_MSB:HOP_LSB] >> 1,
+                                       in_buf_do_vc0[L2R][SOURCE_MSB:0]};
+            end
+
+            if(grant_PE_L2R) begin
+                in_buf_re_vc0[PE]  = 1'b1;
+                out_buf_we_vc0[L2R] = 1'b1;
+                out_buf_di_vc0[L2R] = {in_buf_do_vc0[PE][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[PE][HOP_MSB:HOP_LSB] >> 1,
+                                       in_buf_do_vc0[PE][SOURCE_MSB:0]};
+            end
+
+            if(grant_R2L_R2L) begin
+                in_buf_re_vc0[R2L]  = 1'b1;
+                out_buf_we_vc0[R2L] = 1'b1;
+                out_buf_di_vc0[R2L] = {in_buf_do_vc0[R2L][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[R2L][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[R2L][SOURCE_MSB:0]};
+            end
+                
+            if(grant_PE_R2L) begin
+                in_buf_re_vc0[PE]  = 1'b1;
+                out_buf_we_vc0[R2L] = 1'b1;
+                out_buf_di_vc0[R2L] = {in_buf_do_vc0[PE][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[PE][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[PE][SOURCE_MSB:0]};          
+            end
+
+            if(grant_D2U_D2U) begin
+                in_buf_re_vc0[D2U]  = 1'b1;
+                out_buf_we_vc0[D2U] = 1'b1;
+                out_buf_di_vc0[D2U] = {in_buf_do_vc0[D2U][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[D2U][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[D2U][SOURCE_MSB:0]};
+            end
+
+            if(grant_L2R_D2U) begin
+                in_buf_re_vc0[L2R]  = 1'b1;
+                out_buf_we_vc0[D2U] = 1'b1;
+                out_buf_di_vc0[D2U] = {in_buf_do_vc0[L2R][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[L2R][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[L2R][SOURCE_MSB:0]};
+            end
+
+            if(grant_R2L_D2U) begin
+                in_buf_re_vc0[R2L]  = 1'b1;
+                out_buf_we_vc0[D2U] = 1'b1;
+                out_buf_di_vc0[D2U] = {in_buf_do_vc0[R2L][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[R2L][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[R2L][SOURCE_MSB:0]};
+            end
+
+            if(grant_PE_D2U) begin
+                in_buf_re_vc0[PE]   = 1'b1;
+                out_buf_we_vc0[D2U] = 1'b1;
+                out_buf_di_vc0[D2U] = {in_buf_do_vc0[PE][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[PE][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[PE][SOURCE_MSB:0]};
+            end
+
+            if(grant_U2D_U2D) begin
+                in_buf_re_vc0[U2D]  = 1'b1;
+                out_buf_we_vc0[U2D] = 1'b1;
+                out_buf_di_vc0[U2D] = {in_buf_do_vc0[U2D][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[U2D][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[U2D][SOURCE_MSB:0]};
+            end
+
+            if(grant_L2R_U2D) begin
+                in_buf_re_vc0[L2R]  = 1'b1;
+                out_buf_we_vc0[U2D] = 1'b1;
+                out_buf_di_vc0[U2D] = {in_buf_do_vc0[L2R][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[L2R][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[L2R][SOURCE_MSB:0]};
+            end
+
+            if(grant_R2L_U2D) begin
+                in_buf_re_vc0[R2L]  = 1'b1;
+                out_buf_we_vc0[U2D] = 1'b1;
+                out_buf_di_vc0[U2D] = {in_buf_do_vc0[R2L][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[R2L][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[R2L][SOURCE_MSB:0]};
+            end
+
+            if(grant_PE_U2D) begin
+                in_buf_re_vc0[PE]   = 1'b1;
+                out_buf_we_vc0[U2D] = 1'b1;
+                out_buf_di_vc0[U2D] = {in_buf_do_vc0[PE][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc0[PE][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc0[PE][SOURCE_MSB:0]};
+            end
+
+            if(grant_L2R_PE) begin
+                in_buf_re_vc0[L2R] = 1'b1;
+                out_buf_we_vc0[PE] = 1'b1;
+                out_buf_di_vc0[PE] = {in_buf_do_vc0[L2R][PACKET_SIZE-1:HOP_MSB+1],
+                                      in_buf_do_vc0[L2R][HOP_MSB:HOP_LSB] >> 1,   
+                                      in_buf_do_vc0[L2R][SOURCE_MSB:0]};
+            end
+
+            if(grant_R2L_PE) begin
+                in_buf_re_vc0[R2L] = 1'b1;
+                out_buf_we_vc0[PE] = 1'b1;
+                out_buf_di_vc0[PE] = {in_buf_do_vc0[R2L][PACKET_SIZE-1:HOP_MSB+1],
+                                      in_buf_do_vc0[R2L][HOP_MSB:HOP_LSB] >> 1,   
+                                      in_buf_do_vc0[R2L][SOURCE_MSB:0]};
+            end
+
+            if(grant_D2U_PE) begin
+                in_buf_re_vc0[D2U] = 1'b1;
+                out_buf_we_vc0[PE] = 1'b1;
+                out_buf_di_vc0[PE] = {in_buf_do_vc0[D2U][PACKET_SIZE-1:HOP_MSB+1],
+                                      in_buf_do_vc0[D2U][HOP_MSB:HOP_LSB] >> 1,   
+                                      in_buf_do_vc0[D2U][SOURCE_MSB:0]};
+            end
+        end
+        
+        // vc1
+        else begin
+            if(grant_L2R_L2R) begin
+                in_buf_re_vc1[L2R]  = 1'b1;
+                out_buf_we_vc1[L2R] = 1'b1;
+                out_buf_di_vc1[L2R] = {in_buf_do_vc1[L2R][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[L2R][HOP_MSB:HOP_LSB] >> 1,
+                                       in_buf_do_vc1[L2R][SOURCE_MSB:0]};
+            end
+
+            if(grant_PE_L2R) begin
+                in_buf_re_vc1[PE]  = 1'b1;
+                out_buf_we_vc1[L2R] = 1'b1;
+                out_buf_di_vc1[L2R] = {in_buf_do_vc1[PE][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[PE][HOP_MSB:HOP_LSB] >> 1,
+                                       in_buf_do_vc1[PE][SOURCE_MSB:0]};
+            end
+
+            if(grant_R2L_R2L) begin
+                in_buf_re_vc1[R2L]  = 1'b1;
+                out_buf_we_vc1[R2L] = 1'b1;
+                out_buf_di_vc1[R2L] = {in_buf_do_vc1[R2L][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[R2L][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[R2L][SOURCE_MSB:0]};
+            end
+                
+            if(grant_PE_R2L) begin
+                in_buf_re_vc1[PE]  = 1'b1;
+                out_buf_we_vc1[R2L] = 1'b1;
+                out_buf_di_vc1[R2L] = {in_buf_do_vc1[PE][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[PE][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[PE][SOURCE_MSB:0]};          
+            end
+
+            if(grant_D2U_D2U) begin
+                in_buf_re_vc1[D2U]  = 1'b1;
+                out_buf_we_vc1[D2U] = 1'b1;
+                out_buf_di_vc1[D2U] = {in_buf_do_vc1[D2U][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[D2U][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[D2U][SOURCE_MSB:0]};
+            end
+
+            if(grant_L2R_D2U) begin
+                in_buf_re_vc1[L2R]  = 1'b1;
+                out_buf_we_vc1[D2U] = 1'b1;
+                out_buf_di_vc1[D2U] = {in_buf_do_vc1[L2R][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[L2R][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[L2R][SOURCE_MSB:0]};
+            end
+
+            if(grant_R2L_D2U) begin
+                in_buf_re_vc1[R2L]  = 1'b1;
+                out_buf_we_vc1[D2U] = 1'b1;
+                out_buf_di_vc1[D2U] = {in_buf_do_vc1[R2L][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[R2L][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[R2L][SOURCE_MSB:0]};
+            end
+
+            if(grant_PE_D2U) begin
+                in_buf_re_vc1[PE]   = 1'b1;
+                out_buf_we_vc1[D2U] = 1'b1;
+                out_buf_di_vc1[D2U] = {in_buf_do_vc1[PE][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[PE][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[PE][SOURCE_MSB:0]};
+            end
+
+            if(grant_U2D_U2D) begin
+                in_buf_re_vc1[U2D]  = 1'b1;
+                out_buf_we_vc1[U2D] = 1'b1;
+                out_buf_di_vc1[U2D] = {in_buf_do_vc1[U2D][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[U2D][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[U2D][SOURCE_MSB:0]};
+            end
+
+            if(grant_L2R_U2D) begin
+                in_buf_re_vc1[L2R]  = 1'b1;
+                out_buf_we_vc1[U2D] = 1'b1;
+                out_buf_di_vc1[U2D] = {in_buf_do_vc1[L2R][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[L2R][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[L2R][SOURCE_MSB:0]};
+            end
+
+            if(grant_R2L_U2D) begin
+                in_buf_re_vc1[R2L]  = 1'b1;
+                out_buf_we_vc1[U2D] = 1'b1;
+                out_buf_di_vc1[U2D] = {in_buf_do_vc1[R2L][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[R2L][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[R2L][SOURCE_MSB:0]};
+            end
+
+            if(grant_PE_U2D) begin
+                in_buf_re_vc1[PE]   = 1'b1;
+                out_buf_we_vc1[U2D] = 1'b1;
+                out_buf_di_vc1[U2D] = {in_buf_do_vc1[PE][PACKET_SIZE-1:HOP_MSB+1],
+                                       in_buf_do_vc1[PE][HOP_MSB:HOP_LSB] >> 1,   
+                                       in_buf_do_vc1[PE][SOURCE_MSB:0]};
+            end
+
+            if(grant_L2R_PE) begin
+                in_buf_re_vc1[L2R] = 1'b1;
+                out_buf_we_vc1[PE] = 1'b1;
+                out_buf_di_vc1[PE] = {in_buf_do_vc1[L2R][PACKET_SIZE-1:HOP_MSB+1],
+                                      in_buf_do_vc1[L2R][HOP_MSB:HOP_LSB] >> 1,   
+                                      in_buf_do_vc1[L2R][SOURCE_MSB:0]};
+            end
+
+            if(grant_R2L_PE) begin
+                in_buf_re_vc1[R2L] = 1'b1;
+                out_buf_we_vc1[PE] = 1'b1;
+                out_buf_di_vc1[PE] = {in_buf_do_vc1[R2L][PACKET_SIZE-1:HOP_MSB+1],
+                                      in_buf_do_vc1[R2L][HOP_MSB:HOP_LSB] >> 1,   
+                                      in_buf_do_vc1[R2L][SOURCE_MSB:0]};
+            end
+
+            if(grant_D2U_PE) begin
+                in_buf_re_vc1[D2U] = 1'b1;
+                out_buf_we_vc1[PE] = 1'b1;
+                out_buf_di_vc1[PE] = {in_buf_do_vc1[D2U][PACKET_SIZE-1:HOP_MSB+1],
+                                      in_buf_do_vc1[D2U][HOP_MSB:HOP_LSB] >> 1,   
+                                      in_buf_do_vc1[D2U][SOURCE_MSB:0]};
+            end
+        end
+    end
+
+    
     
 endmodule
