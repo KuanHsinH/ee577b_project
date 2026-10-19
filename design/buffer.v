@@ -1,4 +1,4 @@
-module buf #(
+module buffer #(
     parameter PACKET_SIZE = 64
 ) (
     clk, reset, we, re, data_in,

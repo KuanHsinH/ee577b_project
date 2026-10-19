@@ -142,7 +142,7 @@ module gold_router #(
     end
 
     // vc0 input buffers
-    buf in_buf_L2R_vc0 
+    buffer in_buf_L2R_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -153,7 +153,7 @@ module gold_router #(
         .data_out(in_buf_do_vc0[L2R])
     );
 
-    buf in_buf_R2L_vc0 
+    buffer in_buf_R2L_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -164,7 +164,7 @@ module gold_router #(
         .data_out(in_buf_do_vc0[R2L])
     );
 
-    buf in_buf_D2U_vc0 
+    buffer in_buf_D2U_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -175,7 +175,7 @@ module gold_router #(
         .data_out(in_buf_do_vc0[D2U])
     );
 
-    buf in_buf_U2D_vc0 
+    buffer in_buf_U2D_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -186,7 +186,7 @@ module gold_router #(
         .data_out(in_buf_do_vc0[U2D])
     );
 
-    buf in_buf_PE_vc0 
+    buffer in_buf_PE_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -198,7 +198,7 @@ module gold_router #(
     );
 
     //vc1 input buffers
-    buf in_buf_L2R_vc1 
+    buffer in_buf_L2R_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -209,7 +209,7 @@ module gold_router #(
         .data_out(in_buf_do_vc1[L2R])
     );
 
-    buf in_buf_R2L_vc1 
+    buffer in_buf_R2L_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -220,7 +220,7 @@ module gold_router #(
         .data_out(in_buf_do_vc1[R2L])
     );
 
-    buf in_buf_D2U_vc1 
+    buffer in_buf_D2U_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -231,7 +231,7 @@ module gold_router #(
         .data_out(in_buf_do_vc1[D2U])
     );
 
-    buf in_buf_U2D_vc1 
+    buffer in_buf_U2D_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -242,7 +242,7 @@ module gold_router #(
         .data_out(in_buf_do_vc1[U2D])
     );
 
-    buf in_buf_PE_vc1 
+    buffer in_buf_PE_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -539,7 +539,7 @@ module gold_router #(
     wire [PACKET_SIZE-1:0] out_buf_do_vc1[4:0];
 
     // vc0 output buffers
-    buf out_buf_L2R_vc0 
+    buffer out_buf_L2R_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -550,7 +550,7 @@ module gold_router #(
         .data_out(out_buf_do_vc0[L2R])
     );
 
-    buf out_buf_R2L_vc0 
+    buffer out_buf_R2L_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -561,7 +561,7 @@ module gold_router #(
         .data_out(out_buf_do_vc0[R2L])
     );
 
-    buf out_buf_D2U_vc0 
+    buffer out_buf_D2U_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -572,7 +572,7 @@ module gold_router #(
         .data_out(out_buf_do_vc0[D2U])
     );
 
-    buf out_buf_U2D_vc0 
+    buffer out_buf_U2D_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -583,7 +583,7 @@ module gold_router #(
         .data_out(out_buf_do_vc0[U2D])
     );
 
-    buf out_buf_PE_vc0 
+    buffer out_buf_PE_vc0 
     (
         .clk(clk), 
         .reset(reset),
@@ -595,7 +595,7 @@ module gold_router #(
     );
 
     // vc1 output buffers
-    buf out_buf_L2R_vc1 
+    buffer out_buf_L2R_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -606,7 +606,7 @@ module gold_router #(
         .data_out(out_buf_do_vc1[L2R])
     );
 
-    buf out_buf_R2L_vc1 
+    buffer out_buf_R2L_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -617,7 +617,7 @@ module gold_router #(
         .data_out(out_buf_do_vc1[R2L])
     );
 
-    buf out_buf_D2U_vc1 
+    buffer out_buf_D2U_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -628,7 +628,7 @@ module gold_router #(
         .data_out(out_buf_do_vc1[D2U])
     );
 
-    buf out_buf_U2D_vc1 
+    buffer out_buf_U2D_vc1 
     (
         .clk(clk), 
         .reset(reset),
@@ -639,7 +639,7 @@ module gold_router #(
         .data_out(out_buf_do_vc1[U2D])
     );
 
-    buf out_buf_PE_vc1 
+    buffer out_buf_PE_vc1 
     (
         .clk(clk), 
         .reset(reset),
