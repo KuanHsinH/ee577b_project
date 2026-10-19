@@ -110,6 +110,10 @@ module gold_router #(
 
     // we for in_buf
     always@(*) begin
+
+        in_buf_we_vc0 = 5'd0;
+        in_buf_we_vc1 = 5'd0;
+
         if(ext_vc == 1'b0) begin
             if(L2R_si && L2R_ri) in_buf_we_vc0[L2R] = 1'b1;
             else                 in_buf_we_vc0[L2R] = 1'b0;
@@ -748,6 +752,17 @@ module gold_router #(
         out_buf_we_vc1 = 5'd0;
 
         // CAUTION: no initialization for out_buf_di_vc0 and out_buf_di_vc1, so they will hold their previous values if no grant is given
+        out_buf_di_vc0[L2R] = {PACKET_SIZE{1'bx}};
+        out_buf_di_vc0[R2L] = {PACKET_SIZE{1'bx}};
+        out_buf_di_vc0[D2U] = {PACKET_SIZE{1'bx}};
+        out_buf_di_vc0[U2D] = {PACKET_SIZE{1'bx}};
+        out_buf_di_vc0[PE]  = {PACKET_SIZE{1'bx}};
+
+        out_buf_di_vc1[L2R] = {PACKET_SIZE{1'bx}};
+        out_buf_di_vc1[R2L] = {PACKET_SIZE{1'bx}};
+        out_buf_di_vc1[D2U] = {PACKET_SIZE{1'bx}};
+        out_buf_di_vc1[U2D] = {PACKET_SIZE{1'bx}};
+        out_buf_di_vc1[PE]  = {PACKET_SIZE{1'bx}};
 
         // vc0
         if(int_vc == 1'b0) begin
@@ -869,6 +884,14 @@ module gold_router #(
                 out_buf_di_vc0[PE] = {in_buf_do_vc0[D2U][PACKET_SIZE-1:HOP_MSB+1],
                                       in_buf_do_vc0[D2U][HOP_MSB:HOP_LSB] >> 1,   
                                       in_buf_do_vc0[D2U][SOURCE_MSB:0]};
+            end
+
+            if(grant_U2D_PE) begin
+                in_buf_re_vc0[U2D] = 1'b1;
+                out_buf_we_vc0[PE] = 1'b1;
+                out_buf_di_vc0[PE] = {in_buf_do_vc0[U2D][PACKET_SIZE-1:HOP_MSB+1],
+                                      in_buf_do_vc0[U2D][HOP_MSB:HOP_LSB] >> 1,   
+                                      in_buf_do_vc0[U2D][SOURCE_MSB:0]};
             end
         end
         
@@ -992,6 +1015,14 @@ module gold_router #(
                 out_buf_di_vc1[PE] = {in_buf_do_vc1[D2U][PACKET_SIZE-1:HOP_MSB+1],
                                       in_buf_do_vc1[D2U][HOP_MSB:HOP_LSB] >> 1,   
                                       in_buf_do_vc1[D2U][SOURCE_MSB:0]};
+            end
+
+            if(grant_U2D_PE) begin
+                in_buf_re_vc1[U2D] = 1'b1;
+                out_buf_we_vc1[PE] = 1'b1;
+                out_buf_di_vc1[PE] = {in_buf_do_vc1[U2D][PACKET_SIZE-1:HOP_MSB+1],
+                                      in_buf_do_vc1[U2D][HOP_MSB:HOP_LSB] >> 1,   
+                                      in_buf_do_vc1[U2D][SOURCE_MSB:0]};
             end
         end
     end
