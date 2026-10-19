@@ -76,9 +76,9 @@ module gold_router #(
     input [PACKET_SIZE-1:0]  PE_di, L2R_di, R2L_di, D2U_di, U2D_di; // input packet data
     output reg               PE_ri, L2R_ri, R2L_ri, D2U_ri, U2D_ri; // router telling channel that buffer is empty, can accept
 
-    output                   PE_so, L2R_so, R2L_so, D2U_so, U2D_so; // router telling channel it has packet to send
-    output [PACKET_SIZE-1:0] PE_do, L2R_do, R2L_do, D2U_do, U2D_do; // output packet data
-    input                    PE_ro, L2R_ro, R2L_ro, D2U_ro, U2D_ro; // channel telling router it can accept packet
+    output reg                   PE_so, L2R_so, R2L_so, D2U_so, U2D_so; // router telling channel it has packet to send
+    output reg [PACKET_SIZE-1:0] PE_do, L2R_do, R2L_do, D2U_do, U2D_do; // output packet data
+    input                        PE_ro, L2R_ro, R2L_ro, D2U_ro, U2D_ro; // channel telling router it can accept packet
 
     // polarity control
     always @(posedge clk) begin
@@ -150,7 +150,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc0[L2R]), 
-        .re(),
+        .re(in_buf_re_vc0[L2R]),
         .data_in(L2R_di),
         .full(in_buf_full_vc0[L2R]), 
         .data_out(in_buf_do_vc0[L2R])
@@ -161,7 +161,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc0[R2L]), 
-        .re(),
+        .re(in_buf_re_vc0[R2L]),
         .data_in(R2L_di),
         .full(in_buf_full_vc0[R2L]), 
         .data_out(in_buf_do_vc0[R2L])
@@ -172,7 +172,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc0[D2U]), 
-        .re(),
+        .re(in_buf_re_vc0[D2U]),
         .data_in(D2U_di),
         .full(in_buf_full_vc0[D2U]), 
         .data_out(in_buf_do_vc0[D2U])
@@ -183,7 +183,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc0[U2D]), 
-        .re(),
+        .re(in_buf_re_vc0[U2D]),
         .data_in(U2D_di),
         .full(in_buf_full_vc0[U2D]), 
         .data_out(in_buf_do_vc0[U2D])
@@ -194,7 +194,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc0[PE]), 
-        .re(),
+        .re(in_buf_re_vc0[PE]),
         .data_in(PE_di),
         .full(in_buf_full_vc0[PE]), 
         .data_out(in_buf_do_vc0[PE])
@@ -206,7 +206,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc1[L2R]), 
-        .re(),
+        .re(in_buf_re_vc1[L2R]),
         .data_in(L2R_di),
         .full(in_buf_full_vc1[L2R]), 
         .data_out(in_buf_do_vc1[L2R])
@@ -217,7 +217,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc1[R2L]), 
-        .re(),
+        .re(in_buf_re_vc1[R2L]),
         .data_in(R2L_di),
         .full(in_buf_full_vc1[R2L]), 
         .data_out(in_buf_do_vc1[R2L])
@@ -228,7 +228,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc1[D2U]), 
-        .re(),
+        .re(in_buf_re_vc1[D2U]),
         .data_in(D2U_di),
         .full(in_buf_full_vc1[D2U]), 
         .data_out(in_buf_do_vc1[D2U])
@@ -239,7 +239,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc1[U2D]), 
-        .re(),
+        .re(in_buf_re_vc1[U2D]),
         .data_in(U2D_di),
         .full(in_buf_full_vc1[U2D]), 
         .data_out(in_buf_do_vc1[U2D])
@@ -250,7 +250,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(in_buf_we_vc1[PE]), 
-        .re(),
+        .re(in_buf_re_vc1[PE]),
         .data_in(PE_di),
         .full(in_buf_full_vc1[PE]), 
         .data_out(in_buf_do_vc1[PE])
@@ -335,10 +335,10 @@ module gold_router #(
         .clk(clk),
         .reset(reset),
         .int_vc(int_vc),
-        .req_0(req_PE_U2D), 
-        .req_1(req_PE_D2U), 
-        .req_2(req_PE_R2L), 
-        .req_3(req_PE_L2R),
+        .req_0(req_U2D_PE), 
+        .req_1(req_D2U_PE), 
+        .req_2(req_R2L_PE), 
+        .req_3(req_L2R_PE),
         .grant_0(grant_U2D_PE), 
         .grant_1(grant_D2U_PE), 
         .grant_2(grant_R2L_PE), 
@@ -350,6 +350,9 @@ module gold_router #(
 
     reg  [4:0] out_buf_we_vc0;
     reg  [4:0] out_buf_we_vc1;
+
+    reg  [4:0] out_buf_re_vc0;
+    reg  [4:0] out_buf_re_vc1;
 
     reg  [PACKET_SIZE-1:0] out_buf_di_vc0[4:0];
     reg  [PACKET_SIZE-1:0] out_buf_di_vc1[4:0];
@@ -630,7 +633,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc0[L2R]), 
-        .re(),
+        .re(out_buf_re_vc0[L2R]),
         .data_in(out_buf_di_vc0[L2R]),
         .full(out_buf_full_vc0[L2R]), 
         .data_out(out_buf_do_vc0[L2R])
@@ -641,7 +644,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc0[R2L]), 
-        .re(),
+        .re(out_buf_re_vc0[R2L]),
         .data_in(out_buf_di_vc0[R2L]),
         .full(out_buf_full_vc0[R2L]), 
         .data_out(out_buf_do_vc0[R2L])
@@ -652,7 +655,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc0[D2U]), 
-        .re(),
+        .re(out_buf_re_vc0[D2U]),
         .data_in(out_buf_di_vc0[D2U]),
         .full(out_buf_full_vc0[D2U]), 
         .data_out(out_buf_do_vc0[D2U])
@@ -663,7 +666,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc0[U2D]), 
-        .re(),
+        .re(out_buf_re_vc0[U2D]),
         .data_in(out_buf_di_vc0[U2D]),
         .full(out_buf_full_vc0[U2D]), 
         .data_out(out_buf_do_vc0[U2D])
@@ -674,7 +677,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc0[PE]), 
-        .re(),
+        .re(out_buf_re_vc0[PE]),
         .data_in(out_buf_di_vc0[PE]),
         .full(out_buf_full_vc0[PE]), 
         .data_out(out_buf_do_vc0[PE])
@@ -686,7 +689,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc1[L2R]), 
-        .re(),
+        .re(out_buf_re_vc1[L2R]),
         .data_in(out_buf_di_vc1[L2R]),
         .full(out_buf_full_vc1[L2R]), 
         .data_out(out_buf_do_vc1[L2R])
@@ -697,7 +700,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc1[R2L]), 
-        .re(),
+        .re(out_buf_re_vc1[R2L]),
         .data_in(out_buf_di_vc1[R2L]),
         .full(out_buf_full_vc1[R2L]), 
         .data_out(out_buf_do_vc1[R2L])
@@ -708,7 +711,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc1[D2U]), 
-        .re(),
+        .re(out_buf_re_vc1[D2U]),
         .data_in(out_buf_di_vc1[D2U]),
         .full(out_buf_full_vc1[D2U]), 
         .data_out(out_buf_do_vc1[D2U])
@@ -719,7 +722,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc1[U2D]), 
-        .re(),
+        .re(out_buf_re_vc1[U2D]),
         .data_in(out_buf_di_vc1[U2D]),
         .full(out_buf_full_vc1[U2D]), 
         .data_out(out_buf_do_vc1[U2D])
@@ -730,7 +733,7 @@ module gold_router #(
         .clk(clk), 
         .reset(reset),
         .we(out_buf_we_vc1[PE]), 
-        .re(),
+        .re(out_buf_re_vc1[PE]),
         .data_in(out_buf_di_vc1[PE]),
         .full(out_buf_full_vc1[PE]), 
         .data_out(out_buf_do_vc1[PE])
@@ -738,8 +741,11 @@ module gold_router #(
 
     always@(*) begin
 
-        in_buf_re_vc0 = 4'd0;
-        in_buf_re_vc1 = 4'd0;
+        in_buf_re_vc0 = 5'd0;
+        in_buf_re_vc1 = 5'd0;
+
+        out_buf_we_vc0 = 5'd0;
+        out_buf_we_vc1 = 5'd0;
 
         // CAUTION: no initialization for out_buf_di_vc0 and out_buf_di_vc1, so they will hold their previous values if no grant is given
 
@@ -754,7 +760,7 @@ module gold_router #(
             end
 
             if(grant_PE_L2R) begin
-                in_buf_re_vc0[PE]  = 1'b1;
+                in_buf_re_vc0[PE]   = 1'b1;
                 out_buf_we_vc0[L2R] = 1'b1;
                 out_buf_di_vc0[L2R] = {in_buf_do_vc0[PE][PACKET_SIZE-1:HOP_MSB+1],
                                        in_buf_do_vc0[PE][HOP_MSB:HOP_LSB] >> 1,
@@ -770,7 +776,7 @@ module gold_router #(
             end
                 
             if(grant_PE_R2L) begin
-                in_buf_re_vc0[PE]  = 1'b1;
+                in_buf_re_vc0[PE]   = 1'b1;
                 out_buf_we_vc0[R2L] = 1'b1;
                 out_buf_di_vc0[R2L] = {in_buf_do_vc0[PE][PACKET_SIZE-1:HOP_MSB+1],
                                        in_buf_do_vc0[PE][HOP_MSB:HOP_LSB] >> 1,   
@@ -877,7 +883,7 @@ module gold_router #(
             end
 
             if(grant_PE_L2R) begin
-                in_buf_re_vc1[PE]  = 1'b1;
+                in_buf_re_vc1[PE]   = 1'b1;
                 out_buf_we_vc1[L2R] = 1'b1;
                 out_buf_di_vc1[L2R] = {in_buf_do_vc1[PE][PACKET_SIZE-1:HOP_MSB+1],
                                        in_buf_do_vc1[PE][HOP_MSB:HOP_LSB] >> 1,
@@ -893,7 +899,7 @@ module gold_router #(
             end
                 
             if(grant_PE_R2L) begin
-                in_buf_re_vc1[PE]  = 1'b1;
+                in_buf_re_vc1[PE]   = 1'b1;
                 out_buf_we_vc1[R2L] = 1'b1;
                 out_buf_di_vc1[R2L] = {in_buf_do_vc1[PE][PACKET_SIZE-1:HOP_MSB+1],
                                        in_buf_do_vc1[PE][HOP_MSB:HOP_LSB] >> 1,   
@@ -988,6 +994,33 @@ module gold_router #(
                                       in_buf_do_vc1[D2U][SOURCE_MSB:0]};
             end
         end
+    end
+
+    // output control
+    always@(*)begin
+        L2R_so = ext_vc ? (out_buf_full_vc1[L2R] & L2R_ro) : (out_buf_full_vc0[L2R] & L2R_ro);
+        R2L_so = ext_vc ? (out_buf_full_vc1[R2L] & R2L_ro) : (out_buf_full_vc0[R2L] & R2L_ro);
+        D2U_so = ext_vc ? (out_buf_full_vc1[D2U] & D2U_ro) : (out_buf_full_vc0[D2U] & D2U_ro);
+        U2D_so = ext_vc ? (out_buf_full_vc1[U2D] & U2D_ro) : (out_buf_full_vc0[U2D] & U2D_ro);
+        PE_so  = ext_vc ? (out_buf_full_vc1[PE]  & PE_ro)  : (out_buf_full_vc0[PE]  & PE_ro);
+
+        L2R_do = ext_vc ? out_buf_do_vc1[L2R] : out_buf_do_vc0[L2R];
+        R2L_do = ext_vc ? out_buf_do_vc1[R2L] : out_buf_do_vc0[R2L];
+        D2U_do = ext_vc ? out_buf_do_vc1[D2U] : out_buf_do_vc0[D2U];
+        U2D_do = ext_vc ? out_buf_do_vc1[U2D] : out_buf_do_vc0[U2D];
+        PE_do  = ext_vc ? out_buf_do_vc1[PE]  : out_buf_do_vc0[PE];
+
+        out_buf_re_vc1[L2R] = ext_vc ? (L2R_ro & L2R_so) : 1'b0;
+        out_buf_re_vc1[R2L] = ext_vc ? (R2L_ro & R2L_so) : 1'b0;
+        out_buf_re_vc1[D2U] = ext_vc ? (D2U_ro & D2U_so) : 1'b0;
+        out_buf_re_vc1[U2D] = ext_vc ? (U2D_ro & U2D_so) : 1'b0;
+        out_buf_re_vc1[PE]  = ext_vc ? (PE_ro  & PE_so)  : 1'b0;
+
+        out_buf_re_vc0[L2R] = ext_vc ? 1'b0 : (L2R_ro & L2R_so);
+        out_buf_re_vc0[R2L] = ext_vc ? 1'b0 : (R2L_ro & R2L_so);
+        out_buf_re_vc0[D2U] = ext_vc ? 1'b0 : (D2U_ro & D2U_so);
+        out_buf_re_vc0[U2D] = ext_vc ? 1'b0 : (U2D_ro & U2D_so);
+        out_buf_re_vc0[PE]  = ext_vc ? 1'b0 : (PE_ro  & PE_so);
     end
 
     
