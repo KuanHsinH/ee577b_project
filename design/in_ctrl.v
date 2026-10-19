@@ -1,6 +1,6 @@
 module in_ctrl #(
     parameter PACKET_SIZE = 64,
-    parameter NODE_ID     = 0
+    parameter ROUTER_X\ = 0, ROUTER_Y = 0;
 ) (
     input  wire                     clk,
     input  wire                     reset,
@@ -16,10 +16,6 @@ module in_ctrl #(
     output reg  [PACKET_SIZE-1:0]   routed_data,
     input  wire [4:0]               grant
 );
-
-    // Node numbering: NODE_ID = 4*y + x.
-    localparam integer LOCAL_X = NODE_ID % 4;
-    localparam integer LOCAL_Y = NODE_ID / 4;
 
     // One full-packet register and one valid bit per VC.
     reg [PACKET_SIZE-1:0] buffer_vc0;
@@ -49,6 +45,7 @@ module in_ctrl #(
     // X is routed first; Y is considered only after X matches.
     // req and routed_data are combinational so an output controller can
     // grant the request and capture routed_data at the same rising edge.
+    localparam PE = 0, U2D = 1, D2U = 2, R2L = 3, L2R = 4; 
     always @* begin
         req         = 5'b00000;
         routed_data = {PACKET_SIZE{1'b0}};
@@ -59,16 +56,11 @@ module in_ctrl #(
             else
                 routed_data = buffer_vc1;
 
-            if (active_dest_x > LOCAL_X) begin
-                req = 5'b00100; // EAST: req[2]
-            end else if (active_dest_x < LOCAL_X) begin
-                req = 5'b01000; // WEST: req[3]
-            end else if (active_dest_y > LOCAL_Y) begin
-                req = 5'b00010; // SOUTH: req[1] (y increases downward)
-            end else if (active_dest_y < LOCAL_Y) begin
-                req = 5'b00001; // NORTH: req[0]
-            end else begin
-                req = 5'b10000; // Destination reached: deliver to PE
+            if (active_dest_x > LOCAL_X) req[L2R] = 1'b1; 
+            else if (active_dest_x < LOCAL_X) req[R2L] = 1'b1; 
+            else if (active_dest_y > LOCAL_Y) req[U2D] = 1'b1; 
+            else if (active_dest_y < LOCAL_Y) req[D2U] = 1'b1; 
+            else req[PE] = 1'b1; 
             end
         end
     end
