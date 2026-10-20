@@ -1,15 +1,14 @@
 `timescale 1ns/1ps
 
-//------------------------------------------------------------------------------
 // Unit test for in_ctrl.
 // Tests reset behavior, XY routing, backpressure/holding, and simultaneous
 // forwarding of one VC while receiving the other VC.
-// NODE_ID=5 -> local coordinates (x=1, y=1).
-//------------------------------------------------------------------------------
+
 module tb_in_ctrl;
     parameter PACKET_SIZE = 64;
     localparam NODE_ID = 5;
-
+    localparam ROUTER_X = NODE_ID % 4;
+    localparam ROUTER_Y = NODE_ID / 4;
     reg clk;
     reg reset;
     reg polarity;
@@ -23,7 +22,8 @@ module tb_in_ctrl;
 
     in_ctrl #(
         .PACKET_SIZE(PACKET_SIZE),
-        .NODE_ID(NODE_ID)
+        .ROUTER_X(ROUTER_X),
+        .ROUTER_Y(ROUTER_Y)
     ) dut (
         .clk(clk),
         .reset(reset),
@@ -35,12 +35,11 @@ module tb_in_ctrl;
         .routed_data(routed_data),
         .grant(grant)
     );
-
-    // 250 MHz main clock: 4 ns period.
+    // 250 MHz main clock, 4 ns period
     initial clk = 1'b0;
     always #2 clk = ~clk;
 
-    // Mimic the shared top-level polarity register.
+    // Mimic the shared top-level polarity register:
     // During reset polarity is 0; after reset it toggles on every rising edge.
     always @(posedge clk) begin
         if (reset)
@@ -72,28 +71,28 @@ module tb_in_ctrl;
         grant   = 5'b00000;
         polarity = 1'b0;
 
-        // Local node 5 is (1,1).
-        // Packet 1 targets (2,3), so XY routing must request EAST.
+        // Local node 5 is (1,1)
+        // Packet 1 targets (2,3), so XY routing must request L2R
         packet1 = make_packet(1'b1, 2'd2, 2'd3, 8'h0F, 16'd1, 32'd7);
-        // Packet 2 targets (0,1), so XY routing must request WEST.
+        // Packet 2 targets (0,1), so XY routing must request R2L
         packet2 = make_packet(1'b0, 2'd0, 2'd1, 8'h01, 16'd9, 32'd8);
 
-        // Keep reset asserted for two rising edges. At this point polarity=0.
+        // Keep reset asserted for two rising edges, polarity=0
         repeat (2) @(negedge clk);
         reset   = 1'b0;
         data_in = packet1;
         si      = 1'b1; // polarity 0 accepts VC1
 
-        // Next rising edge captures packet1 into VC1; polarity then becomes 1.
+        // Next rising edge captures packet1 into VC1, polarity then becomes 1
         @(posedge clk);
         #0.1;
-        if (req !== 5'b00100 || routed_data !== packet1) begin
-            $display("FAIL: packet1 was not routed EAST after capture.");
+        if (req !== 5'b10000 || routed_data !== packet1) begin
+            $display("FAIL: packet1 was not routed L2R after capture.");
             $finish;
         end
-        $display("PASS: packet1 captured and requests EAST.");
+        $display("PASS: packet1 captured and requests L2R.");
 
-        // Do not grant yet. Packet must remain buffered while phases alternate.
+        // Do not grant yet, packet must remain buffered while phases alternate
         @(negedge clk);
         si      = 1'b0;
         data_in = {PACKET_SIZE{1'b0}};
@@ -114,7 +113,7 @@ module tb_in_ctrl;
 
         @(posedge clk); // no grant; phase returns to VC1 after edge
         #0.1;
-        if (req !== 5'b00100 || routed_data !== packet1) begin
+        if (req !== 5'b10000 || routed_data !== packet1) begin
             $display("FAIL: packet1 was not held unchanged under backpressure.");
             $finish;
         end
@@ -123,7 +122,7 @@ module tb_in_ctrl;
         // At polarity 1, receive VC0 packet2 while granting packet1 (VC1).
         // This verifies simultaneous operations on the two independent VCs.
         @(negedge clk);
-        grant   = 5'b00100; // grant packet1's EAST request
+        grant   = 5'b10000; // grant packet1's EAST request
         data_in = packet2;
         si      = 1'b1;     // polarity 1 accepts VC0
         if (ri !== 1'b1) begin
@@ -141,7 +140,7 @@ module tb_in_ctrl;
             $display("FAIL: ri should be high after packet1's VC1 buffer is released.");
             $finish;
         end
-        $display("PASS: packet1 forwarded while packet2 was received; packet2 requests WEST.");
+        $display("PASS: packet1 forwarded while packet2 was received; packet2 requests R2L.");
 
         // Hold packet2 without a grant, then grant it during the next VC0 phase.
         @(negedge clk);
@@ -169,7 +168,7 @@ module tb_in_ctrl;
         end
 
         @(negedge clk);
-        grant = 5'b01000; // grant packet2's WEST request
+        grant = 5'b01000; // grant packet2's R2L request
         si    = 1'b0;
 
         @(posedge clk);
@@ -179,8 +178,8 @@ module tb_in_ctrl;
             $finish;
         end
 
-        $display("PASS: packet2 was released after its WEST grant.");
-        $display("ALL INPUT-CONTROLLER TESTS PASSED.");
-        $finish;
-    end
-endmodule
+        $display("PASS: packet2 was released after its R2L grant.");
+            $display("ALL INPUT-CONTROLLER TESTS PASSED.");
+            $finish;
+        end
+    endmodule
