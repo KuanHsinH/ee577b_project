@@ -1,8 +1,6 @@
 module gold_router #(
     parameter PACKET_SIZE = 64,
-    parameter ROUTER_X = 0,
-    parameter ROUTER_Y = 0
-
+    parameter NODE_NUMBER = 0
 )(
     clk, reset, polarity,
 
@@ -18,6 +16,9 @@ module gold_router #(
     U2D_so, U2D_ro, U2D_do,
     PE_so, PE_ro, PE_do
 );
+
+    localparam ROUTER_X = NODE_NUMBER % 4;
+    localparam ROUTER_Y = NODE_NUMBER / 4;
 
     localparam L2R = 4;
     localparam R2L = 3;
@@ -63,18 +64,18 @@ module gold_router #(
     // Payload
     localparam PAYLOAD_MSB     = PACKET_SIZE - 33;
 
-    input                    clk, reset;
+    input                        clk, reset;
 
     // 0 for even polarity, 1 for odd polarity
     // int_vc = polarity, ext_vc = ~polarity
 
-    output reg               polarity;
-    wire                     int_vc = polarity;  
-    wire                     ext_vc = ~polarity; 
-
-    input                    PE_si, L2R_si, R2L_si, D2U_si, U2D_si; // channel telling router that the packet is valid
-    input [PACKET_SIZE-1:0]  PE_di, L2R_di, R2L_di, D2U_di, U2D_di; // input packet data
-    output reg               PE_ri, L2R_ri, R2L_ri, D2U_ri, U2D_ri; // router telling channel that buffer is empty, can accept
+    output reg                   polarity;
+    wire                         int_vc = polarity;  
+    wire                         ext_vc = ~polarity; 
+    
+    input                        PE_si, L2R_si, R2L_si, D2U_si, U2D_si; // channel telling router that the packet is valid
+    input [PACKET_SIZE-1:0]      PE_di, L2R_di, R2L_di, D2U_di, U2D_di; // input packet data
+    output reg                   PE_ri, L2R_ri, R2L_ri, D2U_ri, U2D_ri; // router telling channel that buffer is empty, can accept
 
     output reg                   PE_so, L2R_so, R2L_so, D2U_so, U2D_so; // router telling channel it has packet to send
     output reg [PACKET_SIZE-1:0] PE_do, L2R_do, R2L_do, D2U_do, U2D_do; // output packet data
