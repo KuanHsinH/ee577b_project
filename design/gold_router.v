@@ -603,7 +603,7 @@ module gold_router #(
         out_buf_we_vc0 = 5'd0;
         out_buf_we_vc1 = 5'd0;
 
-        // CAUTION: no initialization for out_buf_di_vc0 and out_buf_di_vc1, so they will hold their previous values if no grant is given
+        // initialization for out_buf_di_vc0 and out_buf_di_vc1
         out_buf_di_vc0[L2R] = {PACKET_SIZE{1'bx}};
         out_buf_di_vc0[R2L] = {PACKET_SIZE{1'bx}};
         out_buf_di_vc0[D2U] = {PACKET_SIZE{1'bx}};
@@ -881,11 +881,11 @@ module gold_router #(
 
     // output control
     always@(*)begin
-        L2R_so = ext_vc ? out_buf_full_vc1[L2R] : out_buf_full_vc0[L2R];
-        R2L_so = ext_vc ? out_buf_full_vc1[R2L] : out_buf_full_vc0[R2L];
-        D2U_so = ext_vc ? out_buf_full_vc1[D2U] : out_buf_full_vc0[D2U];
-        U2D_so = ext_vc ? out_buf_full_vc1[U2D] : out_buf_full_vc0[U2D];
-        PE_so = PE_ro & (ext_vc ? out_buf_full_vc1[PE] : out_buf_full_vc0[PE]); // make sure to include PE_ro 
+        L2R_so = ext_vc ? (L2R_ro & out_buf_full_vc1[L2R]) : (L2R_ro & out_buf_full_vc0[L2R]);
+        R2L_so = ext_vc ? (R2L_ro & out_buf_full_vc1[R2L]) : (R2L_ro & out_buf_full_vc0[R2L]);
+        D2U_so = ext_vc ? (D2U_ro & out_buf_full_vc1[D2U]) : (D2U_ro & out_buf_full_vc0[D2U]);
+        U2D_so = ext_vc ? (U2D_ro & out_buf_full_vc1[U2D]) : (U2D_ro & out_buf_full_vc0[U2D]);
+        PE_so  = ext_vc ? (PE_ro  & out_buf_full_vc1[PE])  : (PE_ro  & out_buf_full_vc0[PE]); 
 
         L2R_do = ext_vc ? out_buf_do_vc1[L2R] : out_buf_do_vc0[L2R];
         R2L_do = ext_vc ? out_buf_do_vc1[R2L] : out_buf_do_vc0[R2L];
