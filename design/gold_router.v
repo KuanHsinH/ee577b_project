@@ -885,7 +885,7 @@ module gold_router #(
         R2L_so = ext_vc ? out_buf_full_vc1[R2L] : out_buf_full_vc0[R2L];
         D2U_so = ext_vc ? out_buf_full_vc1[D2U] : out_buf_full_vc0[D2U];
         U2D_so = ext_vc ? out_buf_full_vc1[U2D] : out_buf_full_vc0[U2D];
-        PE_so  = ext_vc ? out_buf_full_vc1[PE]  : out_buf_full_vc0[PE]; 
+        PE_so = PE_ro & (ext_vc ? out_buf_full_vc1[PE] : out_buf_full_vc0[PE]); // make sure to include PE_ro 
 
         L2R_do = ext_vc ? out_buf_do_vc1[L2R] : out_buf_do_vc0[L2R];
         R2L_do = ext_vc ? out_buf_do_vc1[R2L] : out_buf_do_vc0[R2L];
