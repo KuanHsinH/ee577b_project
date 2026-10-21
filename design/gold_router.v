@@ -883,10 +883,10 @@ module gold_router #(
     always@(*)begin
         // Directional links use ready/valid: valid remains asserted while a
         // packet is buffered, even if the downstream router is not ready.
-        L2R_so = ext_vc ? out_buf_full_vc1[L2R] : out_buf_full_vc0[L2R];
-        R2L_so = ext_vc ? out_buf_full_vc1[R2L] : out_buf_full_vc0[R2L];
-        D2U_so = ext_vc ? out_buf_full_vc1[D2U] : out_buf_full_vc0[D2U];
-        U2D_so = ext_vc ? out_buf_full_vc1[U2D] : out_buf_full_vc0[U2D];
+        L2R_so = L2R_ro & (ext_vc ? out_buf_full_vc1[L2R] : out_buf_full_vc0[L2R]);
+        R2L_so = R2L_ro & (ext_vc ? out_buf_full_vc1[R2L] : out_buf_full_vc0[R2L]);
+        D2U_so = D2U_ro & (ext_vc ? out_buf_full_vc1[D2U] : out_buf_full_vc0[D2U]);
+        U2D_so = U2D_ro & (ext_vc ? out_buf_full_vc1[U2D] : out_buf_full_vc0[U2D]);
 
         // The supplied PE interface rule requires peso=0 whenever pero=0.
         PE_so  = PE_ro & (ext_vc ? out_buf_full_vc1[PE] : out_buf_full_vc0[PE]);
