@@ -881,8 +881,8 @@ module gold_router #(
 
     // output control
     always@(*)begin
-        // Directional links use ready/valid: valid remains asserted while a
-        // packet is buffered, even if the downstream router is not ready.
+        // send only when the selected output VC contains a packet and
+        // the receiving channel reports space.
         L2R_so = L2R_ro & (ext_vc ? out_buf_full_vc1[L2R] : out_buf_full_vc0[L2R]);
         R2L_so = R2L_ro & (ext_vc ? out_buf_full_vc1[R2L] : out_buf_full_vc0[R2L]);
         D2U_so = D2U_ro & (ext_vc ? out_buf_full_vc1[D2U] : out_buf_full_vc0[D2U]);
