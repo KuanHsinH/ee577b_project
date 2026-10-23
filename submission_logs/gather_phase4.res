@@ -1,0 +1,15 @@
+Phase=4, Time=19046.000 ns, Destination=4, Source=0, Packet Value=864
+Phase=4, Time=19054.000 ns, Destination=4, Source=5, Packet Value=869
+Phase=4, Time=19062.000 ns, Destination=4, Source=8, Packet Value=872
+Phase=4, Time=19070.000 ns, Destination=4, Source=1, Packet Value=865
+Phase=4, Time=19078.000 ns, Destination=4, Source=6, Packet Value=870
+Phase=4, Time=19086.000 ns, Destination=4, Source=9, Packet Value=873
+Phase=4, Time=19094.000 ns, Destination=4, Source=2, Packet Value=866
+Phase=4, Time=19102.000 ns, Destination=4, Source=7, Packet Value=871
+Phase=4, Time=19110.000 ns, Destination=4, Source=12, Packet Value=876
+Phase=4, Time=19118.000 ns, Destination=4, Source=3, Packet Value=867
+Phase=4, Time=19126.000 ns, Destination=4, Source=10, Packet Value=874
+Phase=4, Time=19134.000 ns, Destination=4, Source=13, Packet Value=877
+Phase=4, Time=19142.000 ns, Destination=4, Source=11, Packet Value=875
+Phase=4, Time=19150.000 ns, Destination=4, Source=14, Packet Value=878
+Phase=4, Time=19158.000 ns, Destination=4, Source=15, Packet Value=879

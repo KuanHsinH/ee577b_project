@@ -1,0 +1,15 @@
+Phase=0, Time=18518.000 ns, Destination=0, Source=1, Packet Value=801
+Phase=0, Time=18526.000 ns, Destination=0, Source=4, Packet Value=804
+Phase=0, Time=18534.000 ns, Destination=0, Source=2, Packet Value=802
+Phase=0, Time=18542.000 ns, Destination=0, Source=5, Packet Value=805
+Phase=0, Time=18550.000 ns, Destination=0, Source=3, Packet Value=803
+Phase=0, Time=18558.000 ns, Destination=0, Source=8, Packet Value=808
+Phase=0, Time=18566.000 ns, Destination=0, Source=6, Packet Value=806
+Phase=0, Time=18574.000 ns, Destination=0, Source=9, Packet Value=809
+Phase=0, Time=18582.000 ns, Destination=0, Source=7, Packet Value=807
+Phase=0, Time=18590.000 ns, Destination=0, Source=12, Packet Value=812
+Phase=0, Time=18598.000 ns, Destination=0, Source=10, Packet Value=810
+Phase=0, Time=18606.000 ns, Destination=0, Source=13, Packet Value=813
+Phase=0, Time=18614.000 ns, Destination=0, Source=11, Packet Value=811
+Phase=0, Time=18622.000 ns, Destination=0, Source=14, Packet Value=814
+Phase=0, Time=18630.000 ns, Destination=0, Source=15, Packet Value=815

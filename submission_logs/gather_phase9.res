@@ -1,0 +1,15 @@
+Phase=9, Time=19706.000 ns, Destination=9, Source=8, Packet Value=952
+Phase=9, Time=19714.000 ns, Destination=9, Source=10, Packet Value=954
+Phase=9, Time=19722.000 ns, Destination=9, Source=13, Packet Value=957
+Phase=9, Time=19730.000 ns, Destination=9, Source=5, Packet Value=949
+Phase=9, Time=19738.000 ns, Destination=9, Source=11, Packet Value=955
+Phase=9, Time=19746.000 ns, Destination=9, Source=12, Packet Value=956
+Phase=9, Time=19754.000 ns, Destination=9, Source=4, Packet Value=948
+Phase=9, Time=19762.000 ns, Destination=9, Source=14, Packet Value=958
+Phase=9, Time=19770.000 ns, Destination=9, Source=6, Packet Value=950
+Phase=9, Time=19778.000 ns, Destination=9, Source=15, Packet Value=959
+Phase=9, Time=19786.000 ns, Destination=9, Source=1, Packet Value=945
+Phase=9, Time=19794.000 ns, Destination=9, Source=7, Packet Value=951
+Phase=9, Time=19802.000 ns, Destination=9, Source=0, Packet Value=944
+Phase=9, Time=19810.000 ns, Destination=9, Source=2, Packet Value=946
+Phase=9, Time=19818.000 ns, Destination=9, Source=3, Packet Value=947

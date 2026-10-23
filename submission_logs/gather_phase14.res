@@ -1,0 +1,15 @@
+Phase=14, Time=20366.000 ns, Destination=14, Source=10, Packet Value=1034
+Phase=14, Time=20374.000 ns, Destination=14, Source=13, Packet Value=1037
+Phase=14, Time=20382.000 ns, Destination=14, Source=15, Packet Value=1039
+Phase=14, Time=20390.000 ns, Destination=14, Source=9, Packet Value=1033
+Phase=14, Time=20398.000 ns, Destination=14, Source=12, Packet Value=1036
+Phase=14, Time=20406.000 ns, Destination=14, Source=11, Packet Value=1035
+Phase=14, Time=20414.000 ns, Destination=14, Source=6, Packet Value=1030
+Phase=14, Time=20422.000 ns, Destination=14, Source=8, Packet Value=1032
+Phase=14, Time=20430.000 ns, Destination=14, Source=5, Packet Value=1029
+Phase=14, Time=20438.000 ns, Destination=14, Source=7, Packet Value=1031
+Phase=14, Time=20446.000 ns, Destination=14, Source=2, Packet Value=1026
+Phase=14, Time=20454.000 ns, Destination=14, Source=4, Packet Value=1028
+Phase=14, Time=20462.000 ns, Destination=14, Source=1, Packet Value=1025
+Phase=14, Time=20470.000 ns, Destination=14, Source=3, Packet Value=1027
+Phase=14, Time=20478.000 ns, Destination=14, Source=0, Packet Value=1024

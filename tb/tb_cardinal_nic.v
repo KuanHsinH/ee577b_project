@@ -57,7 +57,7 @@ module tb_cardinal_nic;
 
     // 100 MHz test clock; timing itself is not part of the NIC specification.
     initial clk = 1'b0;
-    always #5 clk = ~clk;
+    always #2 clk = ~clk;
 
     function [PACKET_SIZE-1:0] make_packet;
         input vc;
