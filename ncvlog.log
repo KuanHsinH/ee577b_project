@@ -1,0 +1,16 @@
+ncvlog(64): 15.20-s086: (c) Copyright 1995-2020 Cadence Design Systems, Inc.
+TOOL:	ncvlog(64)	15.20-s086: Started on Oct 22, 2026 at 22:21:04 PDT
+ncvlog
+    -STATUS
+    -MESSAGES
+    -UPDATE
+    -INCDIR ./include
+    -work work
+    ./tb/tb_in_ctrl.v
+
+file: ./tb/tb_in_ctrl.v
+	module work.tb_in_ctrl
+		errors: 0, warnings: 0
+ncvlog: Memory Usage - 21.4M program + 20.2M data = 41.6M total
+ncvlog: CPU Usage - 0.0s system + 0.0s user = 0.0s total (0.0s, 93.5% cpu)
+TOOL:	ncvlog(64)	15.20-s086: Exiting on Oct 22, 2026 at 22:21:04 PDT  (total: 00:00:00)

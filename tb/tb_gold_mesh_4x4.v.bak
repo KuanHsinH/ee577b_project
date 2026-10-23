@@ -1,0 +1,697 @@
+`timescale 1ns/1ps
+
+// End-to-end verification for the complete 4x4 mesh. Packets are injected
+// through PE ports and checked on their destination PE ports.
+module tb_gold_mesh_4x4;
+    localparam PACKET_SIZE = 64;
+    localparam MAX_ID = 2047;
+    localparam GATHER_BASE = 800;
+    localparam [63:0] PACKET_COMPARE_MASK = 64'hFF00_FFFF_FFFF_FFFF;
+
+    reg clk, reset;
+    reg [15:0] pesi, pero;
+    reg [63:0] pedi [0:15];
+    wire [15:0] peri, peso, node_polarity;
+    wire [63:0] pedo [0:15];
+
+    reg [63:0] expected_packet [0:MAX_ID];
+    reg [3:0] expected_dest [0:MAX_ID];
+    reg expected_active [0:MAX_ID];
+    reg expected_seen [0:MAX_ID];
+    reg expected_is_gather [0:MAX_ID];
+    integer expected_gather_phase [0:MAX_ID];
+    integer gather_delivered [0:15];
+    integer gather_log_fd [0:15];
+    integer start_end_log_fd;
+    integer event_log_fd;
+    reg [8*64-1:0] gather_filename;
+    integer delivered_count;
+    integer monitor_node;
+    integer monitor_id;
+    integer monitor_match;
+    integer monitor_duplicate;
+    integer search_id;
+    integer blocked_dest;
+    reg check_pe_backpressure;
+    reg pe_backpressure_violation;
+    reg check_link_block;
+    reg blocked_link_seen;
+    reg check_link_forward;
+    reg normal_link_seen;
+    reg previous_polarity;
+    reg polarity_monitor_valid;
+    integer i;
+
+    gold_mesh_4x4 #(.PACKET_SIZE(PACKET_SIZE)) dut (
+        .clk(clk), .reset(reset),
+        .node0_pesi(pesi[0]), .node0_peri(peri[0]),
+        .node0_pedi(pedi[0]), .node0_peso(peso[0]),
+        .node0_pero(pero[0]), .node0_pedo(pedo[0]),
+        .node0_polarity(node_polarity[0]),
+        .node1_pesi(pesi[1]), .node1_peri(peri[1]),
+        .node1_pedi(pedi[1]), .node1_peso(peso[1]),
+        .node1_pero(pero[1]), .node1_pedo(pedo[1]),
+        .node1_polarity(node_polarity[1]),
+        .node2_pesi(pesi[2]), .node2_peri(peri[2]),
+        .node2_pedi(pedi[2]), .node2_peso(peso[2]),
+        .node2_pero(pero[2]), .node2_pedo(pedo[2]),
+        .node2_polarity(node_polarity[2]),
+        .node3_pesi(pesi[3]), .node3_peri(peri[3]),
+        .node3_pedi(pedi[3]), .node3_peso(peso[3]),
+        .node3_pero(pero[3]), .node3_pedo(pedo[3]),
+        .node3_polarity(node_polarity[3]),
+        .node4_pesi(pesi[4]), .node4_peri(peri[4]),
+        .node4_pedi(pedi[4]), .node4_peso(peso[4]),
+        .node4_pero(pero[4]), .node4_pedo(pedo[4]),
+        .node4_polarity(node_polarity[4]),
+        .node5_pesi(pesi[5]), .node5_peri(peri[5]),
+        .node5_pedi(pedi[5]), .node5_peso(peso[5]),
+        .node5_pero(pero[5]), .node5_pedo(pedo[5]),
+        .node5_polarity(node_polarity[5]),
+        .node6_pesi(pesi[6]), .node6_peri(peri[6]),
+        .node6_pedi(pedi[6]), .node6_peso(peso[6]),
+        .node6_pero(pero[6]), .node6_pedo(pedo[6]),
+        .node6_polarity(node_polarity[6]),
+        .node7_pesi(pesi[7]), .node7_peri(peri[7]),
+        .node7_pedi(pedi[7]), .node7_peso(peso[7]),
+        .node7_pero(pero[7]), .node7_pedo(pedo[7]),
+        .node7_polarity(node_polarity[7]),
+        .node8_pesi(pesi[8]), .node8_peri(peri[8]),
+        .node8_pedi(pedi[8]), .node8_peso(peso[8]),
+        .node8_pero(pero[8]), .node8_pedo(pedo[8]),
+        .node8_polarity(node_polarity[8]),
+        .node9_pesi(pesi[9]), .node9_peri(peri[9]),
+        .node9_pedi(pedi[9]), .node9_peso(peso[9]),
+        .node9_pero(pero[9]), .node9_pedo(pedo[9]),
+        .node9_polarity(node_polarity[9]),
+        .node10_pesi(pesi[10]), .node10_peri(peri[10]),
+        .node10_pedi(pedi[10]), .node10_peso(peso[10]),
+        .node10_pero(pero[10]), .node10_pedo(pedo[10]),
+        .node10_polarity(node_polarity[10]),
+        .node11_pesi(pesi[11]), .node11_peri(peri[11]),
+        .node11_pedi(pedi[11]), .node11_peso(peso[11]),
+        .node11_pero(pero[11]), .node11_pedo(pedo[11]),
+        .node11_polarity(node_polarity[11]),
+        .node12_pesi(pesi[12]), .node12_peri(peri[12]),
+        .node12_pedi(pedi[12]), .node12_peso(peso[12]),
+        .node12_pero(pero[12]), .node12_pedo(pedo[12]),
+        .node12_polarity(node_polarity[12]),
+        .node13_pesi(pesi[13]), .node13_peri(peri[13]),
+        .node13_pedi(pedi[13]), .node13_peso(peso[13]),
+        .node13_pero(pero[13]), .node13_pedo(pedo[13]),
+        .node13_polarity(node_polarity[13]),
+        .node14_pesi(pesi[14]), .node14_peri(peri[14]),
+        .node14_pedi(pedi[14]), .node14_peso(peso[14]),
+        .node14_pero(pero[14]), .node14_pedo(pedo[14]),
+        .node14_polarity(node_polarity[14]),
+        .node15_pesi(pesi[15]), .node15_peri(peri[15]),
+        .node15_pedi(pedi[15]), .node15_peso(peso[15]),
+        .node15_pero(pero[15]), .node15_pedo(pedo[15]),
+        .node15_polarity(node_polarity[15])
+    );
+
+    initial clk = 1'b0;
+    always #2 clk = ~clk;
+
+    function [7:0] unary_hops;
+        input integer hops;
+        begin
+            unary_hops = (8'h01 << hops) - 1'b1;
+        end
+    endfunction
+
+    function [63:0] make_packet;
+        input integer src;
+        input integer dst;
+        input vc;
+        input [31:0] id;
+        integer dx, dy, sx, sy, distance;
+        begin
+            dx = dst % 4;
+            dy = dst / 4;
+            sx = src % 4;
+            sy = src / 4;
+            distance = (dx > sx ? dx-sx : sx-dx) +
+                       (dy > sy ? dy-sy : sy-dy);
+            make_packet = {vc, 1'b0, dx[1:0], dy[1:0], 2'b00,
+                           unary_hops(distance), src[15:0], id};
+        end
+    endfunction
+
+    task prepare_expected;
+        input integer src;
+        input integer dst;
+        input vc;
+        input [31:0] id;
+        begin
+            if (id > MAX_ID) begin
+                $display("FAIL: testbench ID %0d exceeds scoreboard capacity", id);
+                $finish(1);
+            end
+            expected_packet[id] = make_packet(src, dst, vc, id);
+            expected_dest[id] = dst;
+            expected_active[id] = 1'b1;
+            expected_seen[id] = 1'b0;
+            expected_is_gather[id] = 1'b0;
+            expected_gather_phase[id] = -1;
+        end
+    endtask
+
+    task prepare_gather_expected;
+        input integer src;
+        input integer dst;
+        input vc;
+        input [31:0] payload;
+        input integer slot;
+        input integer phase;
+        begin
+            if (slot > MAX_ID) begin
+                $display("FAIL: gather scoreboard slot %0d exceeds capacity", slot);
+                $finish(1);
+            end
+            // Current gold_router packet map has VC, destination X/Y, two
+            // reserved fields, unary hop, source, and payload. XY routing
+            // derives direction from destination coordinates.
+            expected_packet[slot] = make_packet(src, dst, vc, payload);
+            expected_dest[slot] = dst;
+            expected_active[slot] = 1'b1;
+            expected_seen[slot] = 1'b0;
+            expected_is_gather[slot] = 1'b1;
+            expected_gather_phase[slot] = phase;
+        end
+    endtask
+
+    task inject_packet;
+        input integer src;
+        input integer dst;
+        input vc;
+        input [31:0] id;
+        integer wait_cycles;
+        begin
+            prepare_expected(src, dst, vc, id);
+            @(negedge clk);
+            wait_cycles = 0;
+            while ((node_polarity[src] !== ~vc) || (peri[src] !== 1'b1)) begin
+                @(negedge clk);
+                wait_cycles = wait_cycles + 1;
+                if (wait_cycles > 200) begin
+                    $display("FAIL: injection timeout src=%0d dst=%0d VC=%0d", src, dst, vc);
+                    $finish(1);
+                end
+            end
+            pedi[src] = expected_packet[id];
+            pesi[src] = 1'b1;
+            @(posedge clk); #0.1;
+            @(negedge clk);
+            pesi[src] = 1'b0;
+            pedi[src] = 64'b0;
+        end
+    endtask
+
+    task wait_delivery;
+        input [31:0] id;
+        input integer timeout_cycles;
+        integer cycles;
+        begin
+            cycles = 0;
+            while (!expected_seen[id] && cycles < timeout_cycles) begin
+                @(posedge clk); #0.1;
+                cycles = cycles + 1;
+            end
+            if (!expected_seen[id]) begin
+                $display("FAIL: packet id=%0d src=%0d dst=%0d timed out after %0d cycles",
+                         id, expected_packet[id][47:32], expected_dest[id], timeout_cycles);
+                $finish(1);
+            end
+            expected_active[id] = 1'b0;
+        end
+    endtask
+
+    task send_packet;
+        input integer src;
+        input integer dst;
+        input vc;
+        input [31:0] id;
+        begin
+            inject_packet(src, dst, vc, id);
+            wait_delivery(id, 100);
+        end
+    endtask
+
+    task close_logs;
+        integer close_index;
+        begin
+            for (close_index = 0; close_index < 16; close_index = close_index + 1)
+                if (gather_log_fd[close_index] != 0)
+                    $fclose(gather_log_fd[close_index]);
+            if (start_end_log_fd != 0) $fclose(start_end_log_fd);
+            if (event_log_fd != 0) $fclose(event_log_fd);
+        end
+    endtask
+
+    task run_gather_phase;
+        input integer phase;
+        integer source;
+        integer slot;
+        integer wait_cycles;
+        reg selected_vc;
+        reg all_ready;
+        reg [15:0] injection_mask;
+        begin
+            selected_vc = phase[0];
+            injection_mask = 16'b0;
+            gather_delivered[phase] = 0;
+
+            // In phase k, every PE except k injects one packet to k. The
+            // payload is a unique packet ID, as required by the mesh
+            // interface rules. The phase alternates VC0/VC1 for coverage.
+            for (source = 0; source < 16; source = source + 1) begin
+                if (source != phase) begin
+                    slot = GATHER_BASE + phase * 16 + source;
+                    prepare_gather_expected(source, phase, selected_vc,
+                                            slot, slot, phase);
+                    injection_mask[source] = 1'b1;
+                end
+            end
+
+            all_ready = 1'b0;
+            wait_cycles = 0;
+            while (!all_ready && wait_cycles < 300) begin
+                @(negedge clk);
+                all_ready = 1'b1;
+                for (source = 0; source < 16; source = source + 1) begin
+                    if (injection_mask[source] &&
+                        ((node_polarity[source] !== ~selected_vc) ||
+                         (peri[source] !== 1'b1)))
+                        all_ready = 1'b0;
+                end
+                wait_cycles = wait_cycles + 1;
+            end
+            if (!all_ready) begin
+                $display("FAIL: gather phase %0d could not find a simultaneous ready injection edge", phase);
+                $finish(1);
+            end
+
+            $fdisplay(start_end_log_fd,
+                      "Phase=%0d StartTime=%0.3f ns Destination=%0d VC=%0d",
+                      phase, $realtime, phase, selected_vc);
+            $fdisplay(event_log_fd,
+                      "TEST=GATHER_PHASE_%0d_START Time=%0.3f ns Destination=%0d VC=%0d",
+                      phase, $realtime, phase, selected_vc);
+
+            pesi = injection_mask;
+            for (source = 0; source < 16; source = source + 1) begin
+                if (injection_mask[source]) begin
+                    slot = GATHER_BASE + phase * 16 + source;
+                    pedi[source] = expected_packet[slot];
+                end
+            end
+            @(posedge clk); #0.1;
+            @(negedge clk);
+            pesi = 16'b0;
+            for (source = 0; source < 16; source = source + 1)
+                pedi[source] = 64'b0;
+
+            wait_cycles = 0;
+            while ((gather_delivered[phase] < 15) && (wait_cycles < 1200)) begin
+                @(posedge clk); #0.1;
+                wait_cycles = wait_cycles + 1;
+            end
+            if (gather_delivered[phase] != 15) begin
+                $display("FAIL: gather phase %0d delivered %0d of 15 packets",
+                         phase, gather_delivered[phase]);
+                $finish(1);
+            end
+
+            for (source = 0; source < 16; source = source + 1) begin
+                if (source != phase) begin
+                    slot = GATHER_BASE + phase * 16 + source;
+                    if (!expected_seen[slot]) begin
+                        $display("FAIL: gather phase %0d missing source %0d", phase, source);
+                        $finish(1);
+                    end
+                    expected_active[slot] = 1'b0;
+                end
+            end
+            $fdisplay(start_end_log_fd,
+                      "Phase=%0d EndTime=%0.3f ns Destination=%0d Delivered=%0d",
+                      phase, $realtime, phase, gather_delivered[phase]);
+            $fdisplay(event_log_fd,
+                      "TEST=GATHER_PHASE_%0d_END Time=%0.3f ns Destination=%0d Delivered=%0d",
+                      phase, $realtime, phase, gather_delivered[phase]);
+            $display("PASS: gather phase %0d delivered 15 packets to node %0d (%0.3f ns)",
+                     phase, phase, $realtime);
+        end
+    endtask
+
+    task reset_with_packet_in_flight;
+        begin
+            $fdisplay(event_log_fd, "TEST=RESET_WITH_PACKET_IN_FLIGHT_START Time=%0.3f ns", $realtime);
+            inject_packet(0, 15, 1'b1, 590);
+            repeat (2) @(posedge clk);
+            #0.1;
+            @(negedge clk);
+            reset = 1'b1;
+            pesi = 16'b0;
+            repeat (2) @(posedge clk);
+            #0.1;
+            if (node_polarity !== 16'b0 || peso !== 16'b0 || peri !== 16'hFFFF) begin
+                $display("FAIL: synchronous reset did not clear in-flight traffic");
+                $finish(1);
+            end
+            expected_active[590] = 1'b0;
+            @(negedge clk);
+            reset = 1'b0;
+            repeat (30) @(posedge clk);
+            #0.1;
+            if (expected_seen[590]) begin
+                $display("FAIL: packet 590 was delivered after reset should have discarded it");
+                $finish(1);
+            end
+            $fdisplay(event_log_fd, "TEST=RESET_WITH_PACKET_IN_FLIGHT_END Time=%0.3f ns", $realtime);
+            $display("PASS: reset discarded an in-flight packet (%0.3f ns)", $realtime);
+        end
+    endtask
+
+    // PE transfers are checked at rising edges using the pre-edge
+    // ready/valid values. The mesh interface rules ignore the hop field.
+    always @(posedge clk) begin
+        if (!reset) begin
+            if ((^peso) === 1'bx) begin
+                $display("FAIL: one or more PE output-valid signals are X");
+                $finish(1);
+            end
+            if (node_polarity !== {16{node_polarity[0]}}) begin
+                $display("FAIL: router polarities are not synchronized: %h", node_polarity);
+                $finish(1);
+            end
+            if (check_pe_backpressure &&
+                (pero[blocked_dest] === 1'b0) &&
+                (peso[blocked_dest] !== 1'b0) &&
+                !pe_backpressure_violation) begin
+                pe_backpressure_violation = 1'b1;
+                $fdisplay(event_log_fd,
+                          "ASSERTION=PE_SO_HIGH_WHILE_PE_RO_LOW Time=%0.3f ns Node=%0d",
+                          $realtime, blocked_dest);
+            end
+
+            if (check_link_forward &&
+                (dut.l2r_so[14] === 1'b1) &&
+                (dut.l2r_ro[14] === 1'b1) &&
+                !normal_link_seen) begin
+                normal_link_seen = 1'b1;
+                $fdisplay(event_log_fd,
+                          "TEST=LINK_HANDSHAKE_UNBLOCKED Time=%0.3f ns Link=14_to_15_L2R",
+                          $realtime);
+            end
+
+            for (monitor_node = 0; monitor_node < 16; monitor_node = monitor_node + 1) begin
+                if (peso[monitor_node] && pero[monitor_node]) begin
+                    monitor_id = pedo[monitor_node][31:0];
+                    monitor_match = -1;
+                    monitor_duplicate = -1;
+                    for (search_id = 0; search_id <= MAX_ID; search_id = search_id + 1) begin
+                        if ((pedo[monitor_node] & PACKET_COMPARE_MASK) ===
+                            (expected_packet[search_id] & PACKET_COMPARE_MASK)) begin
+                            if (expected_active[search_id] === 1'b1)
+                                monitor_match = search_id;
+                            else if (expected_seen[search_id] === 1'b1)
+                                monitor_duplicate = search_id;
+                        end
+                    end
+                    if (monitor_match < 0) begin
+                        if (monitor_duplicate >= 0)
+                            $display("FAIL: duplicate delivery at node %0d, packet value=%0d",
+                                     monitor_node, monitor_id);
+                        else
+                            $display("FAIL: unexpected delivery at node %0d, packet value=%0d",
+                                     monitor_node, monitor_id);
+                        $finish(1);
+                    end
+                    if (expected_seen[monitor_match]) begin
+                        $display("FAIL: duplicate delivery at node %0d, id=%0d",
+                                 monitor_node, monitor_match);
+                        $finish(1);
+                    end
+                    if (expected_dest[monitor_match] != monitor_node) begin
+                        $display("FAIL: id=%0d delivered at node %0d, expected node %0d",
+                                 monitor_match, monitor_node, expected_dest[monitor_match]);
+                        $finish(1);
+                    end
+                    if ((pedo[monitor_node] & PACKET_COMPARE_MASK) !==
+                        (expected_packet[monitor_match] & PACKET_COMPARE_MASK)) begin
+                        $display("FAIL: packet corruption for id=%0d at node %0d; got=%h expected=%h",
+                                 monitor_match, monitor_node, pedo[monitor_node], expected_packet[monitor_match]);
+                        $finish(1);
+                    end
+                    expected_seen[monitor_match] = 1'b1;
+                    delivered_count = delivered_count + 1;
+                    if (expected_is_gather[monitor_match]) begin
+                        gather_delivered[expected_gather_phase[monitor_match]] =
+                            gather_delivered[expected_gather_phase[monitor_match]] + 1;
+                        $fdisplay(gather_log_fd[expected_gather_phase[monitor_match]],
+                                  "Phase=%0d, Time=%0.3f ns, Destination=%0d, Source=%0d, Packet Value=%0d",
+                                  expected_gather_phase[monitor_match], $realtime,
+                                  monitor_node, pedo[monitor_node][47:32],
+                                  pedo[monitor_node][31:0]);
+                    end
+                end
+            end
+        end
+    end
+
+    // Sample the blocked link on the falling edge. Directional links use
+    // ready/valid: SO stays high with a buffered packet while RO is low. The
+    // separate PE rule that gates peso with pero applies only to PE outputs.
+    always @(negedge clk) begin
+        if (!reset && check_link_block && (node_polarity[14] === 1'b0)) begin
+            if ((dut.l2r_ro[14] === 1'b0) &&
+                (dut.l2r_so[14] === 1'b1) &&
+                (dut.router_14.out_buf_full_vc1[4] === 1'b1) &&
+                (dut.router_15.in_buf_full_vc1[4] === 1'b1) &&
+                (dut.router_15.out_buf_full_vc1[0] === 1'b1) &&
+                (pero[15] === 1'b0) &&
+                (peso[15] === 1'b0) &&
+                (dut.l2r_do[14][31:0] === 32'd722) &&
+                !blocked_link_seen) begin
+                blocked_link_seen = 1'b1;
+                $display("SCREENSHOT: MESH_PE_AND_LINK_BLOCKED (zoom around this time), time = %0.3f ns SO=%b RO=%b Payload=%0d",
+                         $realtime, dut.l2r_so[14], dut.l2r_ro[14],
+                         dut.l2r_do[14][31:0]);
+                $fdisplay(event_log_fd,
+                          "TEST=LINK_BACKPRESSURE_HELD Time=%0.3f ns Link=14_to_15_L2R SO=%b RO=%b Payload=%0d",
+                          $realtime, dut.l2r_so[14], dut.l2r_ro[14],
+                          dut.l2r_do[14][31:0]);
+            end
+        end
+    end
+
+    // Check the post-edge value because polarity changes with a nonblocking
+    // assignment in gold_router. Reset leaves every node at 0; afterward all
+    // nodes must toggle together on every rising edge.
+    always @(posedge clk) begin
+        #0.1;
+        if (reset) begin
+            if (node_polarity !== 16'b0) begin
+                $display("FAIL: polarity was not 0 after a reset clock edge: %h", node_polarity);
+                $fdisplay(event_log_fd,
+                          "ASSERTION=POLARITY_NOT_ZERO_DURING_RESET Time=%0.3f ns Value=%h",
+                          $realtime, node_polarity);
+                $finish(1);
+            end
+            previous_polarity = 1'b0;
+            polarity_monitor_valid = 1'b1;
+        end else begin
+            if (polarity_monitor_valid &&
+                node_polarity !== {16{~previous_polarity}}) begin
+                $display("FAIL: polarity did not toggle after a rising edge; previous=%b current=%h",
+                         previous_polarity, node_polarity);
+                $fdisplay(event_log_fd,
+                          "ASSERTION=POLARITY_DID_NOT_TOGGLE Time=%0.3f ns Previous=%b Current=%h",
+                          $realtime, previous_polarity, node_polarity);
+                $finish(1);
+            end
+            previous_polarity = node_polarity[0];
+            polarity_monitor_valid = 1'b1;
+        end
+    end
+
+    integer vc_index, src_index, dst_index, test_id, phase_index;
+    initial begin
+        reset = 1'b1;
+        pesi = 16'b0;
+        pero = 16'hFFFF;
+        delivered_count = 0;
+        check_pe_backpressure = 1'b0;
+        pe_backpressure_violation = 1'b0;
+        check_link_block = 1'b0;
+        blocked_link_seen = 1'b0;
+        check_link_forward = 1'b0;
+        normal_link_seen = 1'b0;
+        previous_polarity = 1'b0;
+        polarity_monitor_valid = 1'b0;
+        blocked_dest = 0;
+        event_log_fd = $fopen("mesh_waveform_times.out", "w");
+        start_end_log_fd = $fopen("start_end_time.out", "w");
+        if (event_log_fd == 0 || start_end_log_fd == 0) begin
+            $display("FAIL: could not open mesh waveform/gather log files in the simulation directory");
+            $finish(1);
+        end
+        for (i = 0; i < 16; i = i + 1) begin
+            $sformat(gather_filename, "gather_phase%0d.res", i);
+            gather_log_fd[i] = $fopen(gather_filename, "w");
+            gather_delivered[i] = 0;
+            if (gather_log_fd[i] == 0) begin
+                $display("FAIL: could not open %0s", gather_filename);
+                $finish(1);
+            end
+        end
+        for (i = 0; i < 16; i = i + 1)
+            pedi[i] = 64'b0;
+        for (i = 0; i <= MAX_ID; i = i + 1) begin
+            expected_packet[i] = 64'b0;
+            expected_dest[i] = 4'b0;
+            expected_active[i] = 1'b0;
+            expected_seen[i] = 1'b0;
+            expected_is_gather[i] = 1'b0;
+            expected_gather_phase[i] = -1;
+        end
+
+        $fdisplay(event_log_fd, "TEST=RESET_IDLE_START Time=%0.3f ns", $realtime);
+        repeat (3) @(posedge clk);
+        #0.1;
+        if (node_polarity !== 16'b0 || peso !== 16'b0 || peri !== 16'hFFFF) begin
+            $display("FAIL: reset interfaces polarity=%h peso=%h peri=%h",
+                     node_polarity, peso, peri);
+            $finish(1);
+        end
+        $fdisplay(event_log_fd, "TEST=RESET_IDLE_END Time=%0.3f ns", $realtime);
+        @(negedge clk);
+        reset = 1'b0;
+
+        reset_with_packet_in_flight;
+
+        // Exhaustive no-self traffic: every source/destination pair and both
+        // virtual channels, one packet at a time. This covers every XY route
+        // and every mesh link in both VC phases.
+        test_id = 0;
+        for (vc_index = 0; vc_index < 2; vc_index = vc_index + 1) begin
+            $fdisplay(event_log_fd, "TEST=EXHAUSTIVE_MESH_VC%0d_START Time=%0.3f ns", vc_index, $realtime);
+            for (src_index = 0; src_index < 16; src_index = src_index + 1) begin
+                for (dst_index = 0; dst_index < 16; dst_index = dst_index + 1) begin
+                    if (src_index != dst_index) begin
+                        send_packet(src_index, dst_index, vc_index[0], test_id);
+                        test_id = test_id + 1;
+                    end
+                end
+            end
+            $fdisplay(event_log_fd, "TEST=EXHAUSTIVE_MESH_VC%0d_END Time=%0.3f ns", vc_index, $realtime);
+            $display("PASS: exhaustive mesh sweep completed for VC%0d", vc_index);
+        end
+        if (delivered_count != 480) begin
+            $display("FAIL: exhaustive sweep delivered %0d packets, expected 480", delivered_count);
+            $finish(1);
+        end
+        $display("PASS: all 480 ordered non-self node pairs delivered on both VCs.");
+
+        // Two packets converge on router 5 and contend for its south output.
+        // Source 4 is launched two edges before source 5 so both arrive at
+        // router 5 together: from L2R and PE respectively.
+        $fdisplay(event_log_fd, "TEST=MESH_TWO_PACKET_CONTENTION_START Time=%0.3f ns Router=5 Output=U2D", $realtime);
+        while (node_polarity[0] !== 1'b0) @(negedge clk);
+        prepare_expected(4, 9, 1'b1, 600);
+        prepare_expected(5, 9, 1'b1, 601);
+        while (peri[4] !== 1'b1) @(negedge clk);
+        pesi[4] = 1'b1;
+        pedi[4] = expected_packet[600];
+        @(posedge clk); #0.1;
+        @(negedge clk);
+        pesi[4] = 1'b0;
+        pedi[4] = 64'b0;
+        @(posedge clk); #0.1;
+        @(negedge clk);
+        while (peri[5] !== 1'b1) @(negedge clk);
+        pesi[5] = 1'b1;
+        pedi[5] = expected_packet[601];
+        @(posedge clk); #0.1;
+        @(negedge clk);
+        pesi[5] = 1'b0;
+        pedi[5] = 64'b0;
+        wait_delivery(600, 100);
+        wait_delivery(601, 100);
+        $fdisplay(event_log_fd, "TEST=MESH_TWO_PACKET_CONTENTION_END Time=%0.3f ns Router=5 Output=U2D", $realtime);
+        $display("PASS: converging packets both delivered through output contention.");
+
+        // Show a non-blocked router-to-router transfer on the final L2R link.
+        $fdisplay(event_log_fd, "TEST=LINK_HANDSHAKE_UNBLOCKED_START Time=%0.3f ns Link=14_to_15_L2R", $realtime);
+        normal_link_seen = 1'b0;
+        check_link_forward = 1'b1;
+        send_packet(14, 15, 1'b1, 710);
+        check_link_forward = 1'b0;
+        if (!normal_link_seen) begin
+            $display("FAIL: did not observe the unblocked router-to-router handshake on link 14->15 L2R");
+            $finish(1);
+        end
+        $fdisplay(event_log_fd, "TEST=LINK_HANDSHAKE_UNBLOCKED_END Time=%0.3f ns Link=14_to_15_L2R", $realtime);
+
+        // Block node 15's PE output. Three packets to the hotspot fill the
+        // output/input buffering and then stall the upstream 14->15 link.
+        // Release PE ready afterward and verify all packets drain exactly once.
+        blocked_dest = 15;
+        @(negedge clk);
+        pero[blocked_dest] = 1'b0;
+        check_pe_backpressure = 1'b1;
+        check_link_block = 1'b1;
+        blocked_link_seen = 1'b0;
+        $fdisplay(event_log_fd, "TEST=PE_READY_LOW_SET Time=%0.3f ns Node=15", $realtime);
+        $fdisplay(event_log_fd, "TEST=PE_AND_LINK_BLOCKING_START Time=%0.3f ns Destination=15", $realtime);
+        inject_packet(14, blocked_dest, 1'b1, 720);
+        repeat (12) @(posedge clk);
+        inject_packet(13, blocked_dest, 1'b1, 721);
+        repeat (16) @(posedge clk);
+        inject_packet(12, blocked_dest, 1'b1, 722);
+        repeat (50) @(posedge clk);
+        #0.1;
+        if (!blocked_link_seen) begin
+            $display("DEBUG: 14->15 blocked check: polarity14=%b SO=%b RO=%b src_L2R_full_vc1=%b dst_L2R_full_vc1=%b dst_PE_full_vc1=%b pero15=%b peso15=%b payload=%0d",
+                     node_polarity[14], dut.l2r_so[14], dut.l2r_ro[14],
+                     dut.router_14.out_buf_full_vc1[4],
+                     dut.router_15.in_buf_full_vc1[4],
+                     dut.router_15.out_buf_full_vc1[0],
+                     pero[15], peso[15], dut.l2r_do[14][31:0]);
+            $display("FAIL: did not observe backpressure on router link 14->15 L2R");
+            $finish(1);
+        end
+        @(negedge clk);
+        pero[blocked_dest] = 1'b1;
+        $fdisplay(event_log_fd, "TEST=PE_READY_HIGH_SET Time=%0.3f ns Node=15", $realtime);
+        check_pe_backpressure = 1'b0;
+        check_link_block = 1'b0;
+        wait_delivery(720, 200);
+        wait_delivery(721, 200);
+        wait_delivery(722, 200);
+        $fdisplay(event_log_fd, "TEST=PE_AND_LINK_BLOCKING_END Time=%0.3f ns Destination=15", $realtime);
+
+        // Execute the 16 all-to-one gather phases, each with 15 simultaneous
+        // injectors and one hot-spot destination.
+        for (phase_index = 0; phase_index < 16; phase_index = phase_index + 1)
+            run_gather_phase(phase_index);
+
+        if (pe_backpressure_violation) begin
+            $display("FAIL: peso was asserted while pero=0; supplied PE interface rule is violated.");
+            $fdisplay(event_log_fd, "RESULT=FAIL PE_SO_ASSERTED_WHILE_PE_RO_LOW Time=%0.3f ns", $realtime);
+            close_logs;
+            $finish(1);
+        end
+        if (delivered_count != 726) begin
+            $display("FAIL: final delivery count=%0d expected=726", delivered_count);
+            $finish(1);
+        end
+        $fdisplay(event_log_fd, "RESULT=PASS ALL_MESH_TESTS Time=%0.3f ns Deliveries=%0d", $realtime, delivered_count);
+        close_logs;
+        $display("ALL 4x4 MESH TESTS PASSED.");
+        $finish;
+    end
+endmodule
+
+
