@@ -17,7 +17,12 @@
 //     are sampled at a rising clock edge; a store is written at that edge,
 //     and load data appears on d_in after that edge (for the next cycle).
 ////////////////////////////////////////////////////////////////////////////
-module cardinal_cpu (
+module cardinal_cpu #(
+    parameter INST_WIDTH = 32;
+    parameter DATA_WIDTH = 64;
+    parameter REG_ADDR_WIDTH = 6;
+    parameter MEM_ADDR_WIDTH = 16;
+)(
     input         clk,        // rising-edge clock
     input         reset,      // synchronous, active high
     input  [0:31] inst_in,    // instruction from the instruction memory
@@ -64,8 +69,128 @@ module cardinal_cpu (
                participate_E = 011,
                participate_O = 100;
 
-    reg [0:31] IF_ID_reg;
+    // IF/ID
+    reg [0:INST_WIDTH-1]     IF_ID_reg; // only the instruction
+
+    // ID/EX wire
+    wire [0:REG_ADDR_WIDTH-1] decoder_regfile_rdAddr0, decoder_regfile_rdAddr1;
+    wire [0:DATA_WIDTH-1]     regfile_rA, regfile_rB;
+
+    wire                      decoder_regfile_we;
+    wire [0:REG_ADDR_WIDTH-1] decoder_regfile_wrAddr;
+    wire [0:7]                decoder_regfile_wrByteEn;
+
+    wire [0:1]                decoder_WW;
+    wire [0:5]                decoder_function_code;
+
+    wire                      decoder_mem_we;
+    wire [0:MEM_ADDR_WIDTH-1] decoder_mem_rdAddr, decoder_mem_wrAddr;
+
+    wire [0:15]               decoder_pc_Addr;
+
+    // ID/EX reg
+    reg [0:DATA_WIDTH-1]     ID_EX_rA, ID_EX_rB;
+
+    reg                      ID_EX_regfile_we;
+    reg [0:REG_ADDR_WIDTH-1] ID_EX_regfile_wrAddr;
+    reg [0:7]                ID_EX_regfile_wrByteEn;
+
+    reg [0:1]                ID_EX_WW;
+    reg [0:5]                ID_EX_function_code;
+
+    reg                      ID_EX_mem_we;
+    reg [0:MEM_ADDR_WIDTH-1] ID_EX_mem_rdAddr, ID_EX_mem_wrAddr;
+
+    reg [0:15]               ID_EX_pc_Addr;
+    
+    // decoder module
+    decoder d1(
+        .inst_in(IF_ID_reg),
+
+        .regfile_rdAddr0(decoder_regfile_rdAddr0),
+        .regfile_rdAddr1(decoder_regfile_rdAddr1),
+
+        .regfile_we(decoder_regfile_we),
+        .regfile_wrAddr(decoder_regfile_wrAddr),
+        .regfile_wrByteEn(decoder_regfile_wrByteEn),
+
+        .WW(decoder_WW),
+        .function_code(decoder_function_code),
+
+        .mem_we(decoder_mem_we),
+        .mem_rdAddr(decoder_mem_rdAddr),
+        .mem_wrAddr(decoder_mem_wrAddr),
+
+        .pc_Addr(decoder_pc_Addr),
+        
+        // CAUTION: NOT YET ASSIGNED
+        .branch(),
+        .compare_bez()
+    );
+
+    // regfile module
+    register_file(
+        .clk(clk),     
+        .reset(reset),   
+
+        // shoulg get from WB stage
+        .wrEn(),    
+        .wrAddr(),  
+        .wrData(),  
+        .wrByteEn(),
+
+        .rdAddr0(decoder_regfile_rdAddr0), 
+        .rdData0(regfile_rA), 
+        .rdAddr1(decoder_regfile_rdAddr1), 
+        .rdData1(regfile_rB)
+    );
+
+    // IF/ID reg statement
+    always @(posedge clk) begin
+        if(reset) IF_ID_reg <= 'd0;
+        else      IF_ID_reg <= inst_in;
+    end
+
+    // ID/EX reg statement
+    always @(posedge clk) begin
+        if(reset) begin
+            ID_EX_rA                <= 'd0;
+            ID_EX_rB                <= 'd0;
+
+            ID_EX_regfile_we        <= 1'b0;
+            ID_EX_regfile_wrAddr    <= 'd0;
+            ID_EX_regfile_wrByteEn  <= 'd0;
+
+            ID_EX_WW                <= 'd0;
+            ID_EX_function_code     <= 'd0;
+
+            ID_EX_mem_we            <= 1'b0;
+            ID_EX_mem_rdAddr        <= 'd0;
+            ID_EX_mem_wrAddr        <= 'd0;
+
+            ID_EX_pc_Addr           <= 'd0;
+        end
+        else begin
+            ID_EX_rA                <= regfile_rA;
+            ID_EX_rB                <= regfile_rB;
+
+            ID_EX_regfile_we        <= decoder_regfile_we;
+            ID_EX_regfile_wrAddr    <= decoder_regfile_wrAddr;
+            ID_EX_regfile_wrByteEn  <= decoder_regfile_wrByteEn;
+
+            ID_EX_WW                <= decoder_WW;
+            ID_EX_function_code     <= decoder_function_code;
+
+            ID_EX_mem_we            <= decoder_mem_we;
+            ID_EX_mem_rdAddr        <= decoder_mem_rdAddr;
+            ID_EX_mem_wrAddr        <= decoder_mem_wrAddr;
+
+            ID_EX_pc_Addr           <= decoder_pc_Addr;
+        end
+    end
 
     
 
 endmodule
+
+
