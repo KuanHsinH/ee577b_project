@@ -86,7 +86,7 @@ module cardinal_cpu #(
     wire                      decoder_mem_we;
     wire [0:MEM_ADDR_WIDTH-1] decoder_mem_rdAddr, decoder_mem_wrAddr;
 
-    wire [0:15]               decoder_pc_Addr;
+    wire [0:2]                decoder_op_type;
 
     // ID/EX reg
     reg [0:DATA_WIDTH-1]     ID_EX_rA, ID_EX_rB;
@@ -101,7 +101,7 @@ module cardinal_cpu #(
     reg                      ID_EX_mem_we;
     reg [0:MEM_ADDR_WIDTH-1] ID_EX_mem_rdAddr, ID_EX_mem_wrAddr;
 
-    reg [0:15]               ID_EX_pc_Addr;
+    reg [0:2]                ID_EX_op_type;
     
     // decoder module
     decoder d1(
@@ -122,10 +122,8 @@ module cardinal_cpu #(
         .mem_wrAddr(decoder_mem_wrAddr),
 
         .pc_Addr(decoder_pc_Addr),
-        
-        // CAUTION: NOT YET ASSIGNED
-        .branch(),
-        .compare_bez()
+
+        .op_type(decoder_op_type)
     );
 
     // regfile module
@@ -169,6 +167,7 @@ module cardinal_cpu #(
             ID_EX_mem_wrAddr        <= 'd0;
 
             ID_EX_pc_Addr           <= 'd0;
+            ID_EX_op_type           <= 'd0;
         end
         else begin
             ID_EX_rA                <= regfile_rA;
@@ -186,9 +185,9 @@ module cardinal_cpu #(
             ID_EX_mem_wrAddr        <= decoder_mem_wrAddr;
 
             ID_EX_pc_Addr           <= decoder_pc_Addr;
+            ID_EX_op_type           <= decoder_op_type;
         end
     end
-
     
 
 endmodule

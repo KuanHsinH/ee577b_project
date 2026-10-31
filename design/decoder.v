@@ -11,8 +11,7 @@ module decoder(
     mem_rdAddr,
     mem_wrAddr,
     pc_Addr,
-    branch,
-    compare_bez
+    op_type
 );
 
     input      [0:31] inst_in;
@@ -29,7 +28,7 @@ module decoder(
     output reg [0:15] mem_rdAddr, mem_wrAddr;
 
     output reg [0:15] pc_Addr;
-    output reg        branch, compare_bez;
+    output reg [0:2]  op_type;
 
     // 6 bit function code
     localparam VAND   = 6'b000001,
@@ -52,12 +51,12 @@ module decoder(
                VSQRT  = 6'b010010;
     
     // 6 bit opcode
-    localparam R_ALU  = 6'b101010,
-               M_LD   = 6'b100000,
-               M_SD   = 6'b100001,
-               R_BEZ  = 6'b100010,
-               R_BNEZ = 6'b100011,
-               VNOP   = 6'b111100;
+    localparam R_ALU  = 6'b101010,  // 001
+               M_LD   = 6'b100000,  // 010
+               M_SD   = 6'b100001,  // 011
+               R_BEZ  = 6'b100010,  // 100
+               R_BNEZ = 6'b100011,  // 101
+               VNOP   = 6'b111100;  // 000
 
     // 3 bit participation
     localparam participate_A = 3'b000,
@@ -84,8 +83,7 @@ module decoder(
         mem_wrAddr       = 16'd0;
     
         pc_Addr          = 16'd0;
-        branch           = 1'b0;
-        compare_bez      = 1'b0;    // 0 for bnez, 1 for bez
+        op_type          = 3'b000; // NOP
 
         case (inst_in[0:5])
             R_ALU: begin
@@ -98,7 +96,7 @@ module decoder(
                 WW              = inst_in[24:25];
                 function_code   = inst_in[26:31];
                 
-                branch          = 1'b0;
+                op_type         = 3'b001; // R_ALU
 
                 case (inst_in[21:23])
                     participate_A: regfile_wrByteEn = 8'b1111_1111;
@@ -134,7 +132,7 @@ module decoder(
                 mem_we           = 1'b0;
                 mem_rdAddr       = inst_in[16:31];
 
-                branch           = 1'b0;
+                op_type          = 3'b010; // LD
             end
 
             M_SD: begin
@@ -144,23 +142,21 @@ module decoder(
                 mem_we           = 1'b1;
                 mem_wrAddr       = inst_in[16:31];
 
-                branch           = 1'b0;
+                op_type          = 3'b011; // SD
             end
 
             R_BEZ: begin
                 regfile_we       = 1'b0;
                 regfile_rdAddr0  = inst_in[6:10];
                 pc_Addr          = inst_in[16:31];
-                branch           = 1'b1;
-                compare_bez      = 1'b1;
+                op_type          = 2'b100; // BEZ
             end
 
             R_BNEZ: begin
                 regfile_we       = 1'b0;
                 regfile_rdAddr0  = inst_in[6:10];
                 pc_Addr          = inst_in[16:31];
-                branch           = 1'b1;
-                compare_bez      = 1'b0;
+                op_type          = 3'b101; // BNEZ
             end
 
             default: begin
@@ -178,8 +174,7 @@ module decoder(
                 mem_wrAddr       = 16'd0;
             
                 pc_Addr          = 16'd0;
-                branch           = 1'b0;
-                compare_bez      = 1'b0;
+                op_type          = 3'b000;
             end
         endcase
     end
