@@ -54,15 +54,15 @@ module ALU #(
     wire  add_sub = (function_code == VADD) ? 1'b0 : 1'b1;
     wire  [0:DATA_WIDTH-1] sum_diff;
 
-    assign ci[0] = (subfield_sel == b_mode) ? 1'b0 : co[1];
-    assign ci[1] = ((subfield_sel == b_mode) || (subfield_sel == h_mode)) ? 1'b0 : co[2];
-    assign ci[2] = (subfield_sel == b_mode) ? 1'b0 : co[3];
-    assign ci[3] = ((subfield_sel == b_mode) || (subfield_sel == h_mode) || (subfield_sel == w_mode)) ? 1'b0 : co[4];
-    assign ci[4] = (subfield_sel == b_mode) ? 1'b0 : co[5];
-    assign ci[5] = ((subfield_sel == b_mode) || (subfield_sel == h_mode)) ? 1'b0 : co[6];
-    assign ci[6] = (subfield_sel == b_mode) ? 1'b0 : co[7];
+    assign ci[0] = (WW == 2'b00) ? 1'b0 : co[1];
+    assign ci[1] = ((WW == 2'b00) || (WW == 2'b01)) ? 1'b0 : co[2];
+    assign ci[2] = (WW == 2'b00) ? 1'b0 : co[3];
+    assign ci[3] = ((WW == 2'b00) || (WW == 2'b01) || (WW == 2'b10)) ? 1'b0 : co[4];
+    assign ci[4] = (WW == 2'b00) ? 1'b0 : co[5];
+    assign ci[5] = ((WW == 2'b00) || (WW == 2'b01)) ? 1'b0 : co[6];
+    assign ci[6] = (WW == 2'b00) ? 1'b0 : co[7];
 
-    // instantiating
+    // instantiating add/sub
     DW01_addsub #(.width(8))
     addsub_0 ( .A(rA[0:7]), .B(rB[0:7]), .CI(ci[0]), .ADD_SUB(add_sub), 
          .SUM(sum_diff[0:7]), .CO(co[0]) );
@@ -95,9 +95,9 @@ module ALU #(
     addsub_7 ( .A(rA[56:63]), .B(rB[56:63]), .CI(1'b0), .ADD_SUB(add_sub), 
          .SUM(sum_diff[56:63]), .CO(co[7]) );
 
+    //----------------------------------------------------------------------
 
-
-
+    // mul
 
     // assigning out
     always@(*) begin    
@@ -113,62 +113,8 @@ module ALU #(
                     VXOR:   out = rA ^ rB;
                     VNOT:   out = ~rA;
                     VMOV:   out = rA;  
-                    VADD: begin
-                        case (WW)
-                            2'b00: begin
-                                out[0:7]   = rA[0:7]   + rB[0:7];
-                                out[8:15]  = rA[8:15]  + rB[8:15];
-                                out[16:23] = rA[16:23] + rB[16:23];
-                                out[24:31] = rA[24:31] + rB[24:31];
-                                out[32:39] = rA[32:39] + rB[32:39];
-                                out[40:47] = rA[40:47] + rB[40:47];
-                                out[48:55] = rA[48:55] + rB[48:55];
-                                out[56:63] = rA[56:63] + rB[56:63];
-                            end
-                            2'b01: begin
-                                out[0:15]  = rA[0:15]  + rB[0:15];
-                                out[16:31] = rA[16:31] + rB[16:31];
-                                out[32:47] = rA[32:47] + rB[32:47];
-                                out[48:63] = rA[48:63] + rB[48:63];
-                            end
-                            2'b10: begin
-                                out[0:31]  = rA[0:31]  + rB[0:31];
-                                out[32:63] = rA[32:63] + rB[32:63];
-                            end
-                            2'b11: begin
-                                out = rA + rB;
-                            end
-                            default: out = 64'd0;
-                        endcase
-                    end
-                    VSUB: begin
-                        case (WW)
-                            2'b00: begin
-                                out[0:7]   = rA[0:7]   - rB[0:7];
-                                out[8:15]  = rA[8:15]  - rB[8:15];
-                                out[16:23] = rA[16:23] - rB[16:23];
-                                out[24:31] = rA[24:31] - rB[24:31];
-                                out[32:39] = rA[32:39] - rB[32:39];
-                                out[40:47] = rA[40:47] - rB[40:47];
-                                out[48:55] = rA[48:55] - rB[48:55];
-                                out[56:63] = rA[56:63] - rB[56:63];
-                            end
-                            2'b01: begin
-                                out[0:15]  = rA[0:15]  - rB[0:15];
-                                out[16:31] = rA[16:31] - rB[16:31];
-                                out[32:47] = rA[32:47] - rB[32:47];
-                                out[48:63] = rA[48:63] - rB[48:63];
-                            end
-                            2'b10: begin
-                                out[0:31]  = rA[0:31]  - rB[0:31];
-                                out[32:63] = rA[32:63] - rB[32:63];
-                            end
-                            2'b11: begin
-                                out = rA - rB;
-                            end
-                            default: out = 64'd0;
-                        endcase
-                    end
+                    VADD:   out = sum_diff;
+                    VSUB:   out = sum_diff;
                     VMULEU: begin
                         case (WW)
                             2'b00: begin
