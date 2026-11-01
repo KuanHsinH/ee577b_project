@@ -50,6 +50,8 @@ module ALU #(
     
     output reg [0:DATA_WIDTH-1] out;
 
+    //----------------------------------------------------------------------
+
     // add/sub
     wire  add_sub = (function_code == VADD) ? 1'b0 : 1'b1;
     wire  [0:DATA_WIDTH-1] sum_diff;
@@ -99,6 +101,84 @@ module ALU #(
 
     // mul
 
+    wire [0:DATA_WIDTH-1] prod_b, prod_h, prod_w;
+
+    wire [0:(DATA_WIDTH/2)-1)] mul_inA, mul_inB;
+
+    always @(*) begin
+        case (function_code)
+            VMULEU: begin
+                case (WW)
+                    2'b00: begin
+                        mul_inA = {rA[0:7], rA[16:23], rA[32:39], rA[48:55]};
+                        mul_inB = {rB[0:7], rB[16:23], rB[32:39], rB[48:55]};
+                    end 
+                    2'b01: begin
+                        mul_inA = {rA[0:15], rA[32:47]};
+                        mul_inB = {rB[0:15], rB[32:47]};
+                    end
+                    2'b10: begin
+                        mul_inA = rA[0:31];
+                        mul_inB = rB[0:31];
+                    end
+                    default: begin
+                        mul_inA = 32'd0;
+                        mul_inB = 32'd0;
+                    end
+                endcase
+            end 
+            VMULOU: begin
+                case (WW)
+                    2'b00: begin
+                        mul_inA = {rA[8:15], rA[24:31], rA[40:47], rA[56:63]};
+                        mul_inB = {rB[8:15], rB[24:31], rB[40:47], rB[56:63]};
+                    end 
+                    2'b01: begin
+                        mul_inA = {rA[16:31], rA[48:63]};
+                        mul_inB = {rB[16:31], rB[48:63]};
+                    end
+                    2'b10: begin
+                        mul_inA = rA[32:63];
+                        mul_inB = rB[32:63];
+                    end
+                    default: begin
+                        mul_inA = 32'd0;
+                        mul_inB = 32'd0;
+                    end
+                endcase
+            end
+            default:    {mul_inA, mul_inB} = 64'd0;
+        endcase
+    end
+
+    // WW = 00
+    DW02_mult #(.A_width(8), .B_width(8))
+    mul0 ( .A(mul_inA[0:7]), .B(mul_inB[0:7]), .TC(1'b0), .PRODUCT(prod_b[0:15]) );
+
+    DW02_mult #(.A_width(8), .B_width(8))
+    mul1 ( .A(mul_inA[8:15]), .B(mul_inB[8:15]), .TC(1'b0), .PRODUCT(prod_b[16:31]) );
+
+    DW02_mult #(.A_width(8), .B_width(8))
+    mul2 ( .A(mul_inA[16:23]), .B(mul_inB[16:23]), .TC(1'b0), .PRODUCT(prod_b[32:47]) );
+
+    DW02_mult #(.A_width(8), .B_width(8))
+    mul3 ( .A(mul_inA[24:31]), .B(mul_inB[24:31]), .TC(1'b0), .PRODUCT(prod_b[48:63]) );
+
+    // WW = 01
+    DW02_mult #(.A_width(16), .B_width(16))
+    mul4 ( .A(mul_inA[0:15]), .B(mul_inB[0:15]), .TC(1'b0), .PRODUCT(prod_h[0:31]) );
+
+    DW02_mult #(.A_width(16), .B_width(16))
+    mul5 ( .A(mul_inA[16:31]), .B(mul_inB)[16:31], .TC(1'b0), .PRODUCT(prod_h[32:63]) );
+
+    // WW = 10
+    DW02_mult #(.A_width(32), .B_width(32))
+    mul6 ( .A(mul_inA[0:31]), .B(mul_inB[0:31]), .TC(1'b0), .PRODUCT(prod_w[0:63]) );
+
+    //----------------------------------------------------------------------
+
+    // 
+
     // assigning out
     always@(*) begin    
         case (op_type)
@@ -117,38 +197,18 @@ module ALU #(
                     VSUB:   out = sum_diff;
                     VMULEU: begin
                         case (WW)
-                            2'b00: begin
-                                out[0:15]  = rA[0:7]   * rB[0:7];
-                                out[16:31] = rA[16:23] * rB[16:23];
-                                out[32:47] = rA[32:39] * rB[32:39];
-                                out[48:63] = rA[48:55] * rB[48:55];
-                            end
-                            2'b01: begin
-                                out[0:31]  = rA[0:15]  * rB[0:15];
-                                out[32:63] = rA[32:47] * rB[32:47];
-                            end
-                            2'b10: begin
-                                out        = rA[0:31]  * rB[0:31];
-                            end
-                            default: out   = 64'd0;
+                            2'b00: out = prod_b;
+                            2'b01: out = prod_h;
+                            2'b10: out = prod_w;
+                            default: out = 64'd0;
                         endcase
                     end
                     VMULOU: begin
                         case (WW)
-                            2'b00: begin
-                                out[0:15]  = rA[8:15]  * rB[8:15];
-                                out[16:31] = rA[24:31] * rB[24:31];
-                                out[32:47] = rA[40:47] * rB[40:47];
-                                out[48:63] = rA[56:63] * rB[56:63];
-                            end
-                            2'b01: begin
-                                out[0:31]  = rA[16:31] * rB[16:31];
-                                out[32:63] = rA[48:63] * rB[48:63];
-                            end
-                            2'b10: begin
-                                out        = rA[32:63]  * rB[32:63];
-                            end
-                            default: out   = 64'd0;
+                            2'b00: out = prod_b;
+                            2'b01: out = prod_h;
+                            2'b10: out = prod_w;
+                            default: out = 64'd0;
                         endcase
                     end
                     VSLL: begin
@@ -268,9 +328,11 @@ module ALU #(
                             default: out = 64'd0;
                         endcase
                     end
+                    
+                    default: out = 64'd0;
                 endcase
             end
-            default: 
+            default: out = 64'd0;
         endcase
     end
     
