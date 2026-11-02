@@ -103,7 +103,7 @@ module ALU #(
 
     wire [0:DATA_WIDTH-1] prod_b, prod_h, prod_w;
 
-    wire [0:(DATA_WIDTH/2)-1)] mul_inA, mul_inB;
+    wire [0:(DATA_WIDTH/2)-1] mul_inA, mul_inB;
 
     always @(*) begin
         case (function_code)
@@ -147,6 +147,46 @@ module ALU #(
                     end
                 endcase
             end
+            VSQEU: begin
+                case (WW)
+                    2'b00: begin
+                        mul_inA = {rA[0:7], rA[16:23], rA[32:39], rA[48:55]};
+                        mul_inB = {rA[0:7], rA[16:23], rA[32:39], rA[48:55]};
+                    end 
+                    2'b01: begin
+                        mul_inA = {rA[0:15], rA[32:47]};
+                        mul_inB = {rA[0:15], rA[32:47]};
+                    end
+                    2'b10: begin
+                        mul_inA = rA[0:31];
+                        mul_inB = rA[0:31];
+                    end
+                    default: begin
+                        mul_inA = 32'd0;
+                        mul_inB = 32'd0;
+                    end
+                endcase
+            end
+            VSQOU: begin
+                case (WW)
+                    2'b00: begin
+                        mul_inA = {rA[8:15], rA[24:31], rA[40:47], rA[56:63]};
+                        mul_inB = {rA[8:15], rA[24:31], rA[40:47], rA[56:63]};
+                    end 
+                    2'b01: begin
+                        mul_inA = {rA[16:31], rA[48:63]};
+                        mul_inB = {rA[16:31], rA[48:63]};
+                    end
+                    2'b10: begin
+                        mul_inA = rA[32:63];
+                        mul_inB = rA[32:63];
+                    end
+                    default: begin
+                        mul_inA = 32'd0;
+                        mul_inB = 32'd0;
+                    end 
+                endcase
+            end
             default:    {mul_inA, mul_inB} = 64'd0;
         endcase
     end
@@ -177,7 +217,350 @@ module ALU #(
 
     //----------------------------------------------------------------------
 
-    // 
+    // shift
+    reg [0:3] shift_b_0, shift_b_1, shift_b_2, shift_b_3, shift_b_4, shift_b_5, shift_b_6, shift_b_7;
+    reg [0:4] shift_h_0, shift_h_1, shift_h_2, shift_h_3;
+    reg [0:5] shift_w_0, shift_w_1;
+    reg [0:6] shift_d_0;
+
+    wire [0:DATA_WIDTH-1] shift_out_b, shift_out_h, shift_out_w, shift_out_d;
+
+    wire data_tc_ctrl = (function_code == VSRA) ? 1'b1 : 1'b0;
+
+    always @(*) begin
+        if(function_code == VSLL) begin
+            case (WW)
+                2'b00: begin
+                    shift_b_0 = {1'b0, rB[5:7]};
+                    shift_b_1 = {1'b0, rB[13:15]};
+                    shift_b_2 = {1'b0, rB[21:23]};
+                    shift_b_3 = {1'b0, rB[29:31]};
+                    shift_b_4 = {1'b0, rB[37:39]};
+                    shift_b_5 = {1'b0, rB[45:47]};
+                    shift_b_6 = {1'b0, rB[53:55]};
+                    shift_b_7 = {1'b0, rB[61:63]};
+                end
+                2'b01: begin
+                    shift_h_0 = {1'b0, rB[12:15]};
+                    shift_h_1 = {1'b0, rB[28:31]};
+                    shift_h_2 = {1'b0, rB[44:47]};
+                    shift_h_3 = {1'b0, rB[60:63]};
+                end
+                2'b10: begin
+                    shift_w_0 = {1'b0, rB[27:31]};
+                    shift_w_1 = {1'b0, rB[59:63]};
+                end
+                2'b11: begin
+                    shift_d_0 = {1'b0, rB[58:63]};
+                end
+                default: begin
+                    shift_b_0 = 'd0;
+                    shift_b_1 = 'd0;
+                    shift_b_2 = 'd0;
+                    shift_b_3 = 'd0;
+                    shift_b_4 = 'd0;
+                    shift_b_5 = 'd0;
+                    shift_b_6 = 'd0;
+                    shift_b_7 = 'd0;
+
+                    shift_h_0 = 'd0;
+                    shift_h_1 = 'd0;
+                    shift_h_2 = 'd0;
+                    shift_h_3 = 'd0;
+
+                    shift_w_0 = 'd0;
+                    shift_w_1 = 'd0;
+
+                    shift_d_0 = 'd0;
+                end
+            endcase
+        end
+        else begin // VSRL, VSRA
+            case (WW)
+                2'b00: begin
+                    shift_b_0 = ~({1'b0, rB[5:7]}) + 1'b1;
+                    shift_b_1 = ~({1'b0, rB[13:15]}) + 1'b1;
+                    shift_b_2 = ~({1'b0, rB[21:23]}) + 1'b1;
+                    shift_b_3 = ~({1'b0, rB[29:31]}) + 1'b1;
+                    shift_b_4 = ~({1'b0, rB[37:39]}) + 1'b1;
+                    shift_b_5 = ~({1'b0, rB[45:47]}) + 1'b1;
+                    shift_b_6 = ~({1'b0, rB[53:55]}) + 1'b1;
+                    shift_b_7 = ~({1'b0, rB[61:63]}) + 1'b1;
+                end
+                2'b01: begin
+                    shift_h_0 = ~({1'b0, rB[12:15]}) + 1'b1;
+                    shift_h_1 = ~({1'b0, rB[28:31]}) + 1'b1;
+                    shift_h_2 = ~({1'b0, rB[44:47]}) + 1'b1;
+                    shift_h_3 = ~({1'b0, rB[60:63]}) + 1'b1;
+                end
+                2'b10: begin
+                    shift_w_0 = ~({1'b0, rB[27:31]}) + 1'b1;
+                    shift_w_1 = ~({1'b0, rB[59:63]}) + 1'b1;
+                end
+                2'b11: begin
+                    shift_d_0 = ~({1'b0, rB[58:63]}) + 1'b1;
+                end
+                default: begin
+                    shift_b_0 = 'd0;
+                    shift_b_1 = 'd0;
+                    shift_b_2 = 'd0;
+                    shift_b_3 = 'd0;
+                    shift_b_4 = 'd0;
+                    shift_b_5 = 'd0;
+                    shift_b_6 = 'd0;
+                    shift_b_7 = 'd0;
+
+                    shift_h_0 = 'd0;
+                    shift_h_1 = 'd0;
+                    shift_h_2 = 'd0;
+                    shift_h_3 = 'd0;
+
+                    shift_w_0 = 'd0;
+                    shift_w_1 = 'd0;
+
+                    shift_d_0 = 'd0;
+                end
+            endcase
+        end
+    end
+
+    // WW = 00
+    DW_shifter #(.data_width(8), .sh_width(4))
+    shift_byte_0 ( .data_in(rA[0:7]),   .data_tc(data_tc_ctrl),   .sh(shift_b_0),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_b[0:7]) );
+
+    DW_shifter #(.data_width(8), .sh_width(4))
+    shift_byte_1 ( .data_in(rA[8:15]),   .data_tc(data_tc_ctrl),   .sh(shift_b_1),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_b[8:15]) );
+
+    DW_shifter #(.data_width(8), .sh_width(4))
+    shift_byte_2 ( .data_in(rA[16:23]),   .data_tc(data_tc_ctrl),   .sh(shift_b_2),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_b[16:23]) );
+
+    DW_shifter #(.data_width(8), .sh_width(4))
+    shift_byte_3 ( .data_in(rA[24:31]),   .data_tc(data_tc_ctrl),   .sh(shift_b_3),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_b[24:31]) );     
+
+    DW_shifter #(.data_width(8), .sh_width(4))
+    shift_byte_4 ( .data_in(rA[32:39]),   .data_tc(data_tc_ctrl),   .sh(shift_b_4),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_b[32:39]) );
+
+    DW_shifter #(.data_width(8), .sh_width(4))
+    shift_byte_5 ( .data_in(rA[40:47]),   .data_tc(data_tc_ctrl),   .sh(shift_b_5),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_b[40:47]) );
+
+    DW_shifter #(.data_width(8), .sh_width(4))
+    shift_byte_6 ( .data_in(rA[48:55]),   .data_tc(data_tc_ctrl),   .sh(shift_b_6),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_b[48:55]) );
+
+    DW_shifter #(.data_width(8), .sh_width(4))
+    shift_byte_7 ( .data_in(rA[56:63]),   .data_tc(data_tc_ctrl),   .sh(shift_b_7),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_b[55:63]) );
+
+    // WW = 01
+    DW_shifter #(.data_width(16), .sh_width(5))
+    shift_half_0 ( .data_in(rA[0:15]),   .data_tc(data_tc_ctrl),   .sh(shift_h_0),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_h[0:15]) );
+
+    DW_shifter #(.data_width(16), .sh_width(5))
+    shift_half_1 ( .data_in(rA[16:31]),   .data_tc(data_tc_ctrl),   .sh(shift_h_1),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_h[16:31]) );
+
+    DW_shifter #(.data_width(16), .sh_width(5))
+    shift_half_2 ( .data_in(rA[32:47]),   .data_tc(data_tc_ctrl),   .sh(shift_h_2),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_h[32:47]) );
+
+    DW_shifter #(.data_width(16), .sh_width(5))
+    shift_half_3 ( .data_in(rA[48:63]),   .data_tc(data_tc_ctrl),   .sh(shift_h_3),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_h[48:63]) );  
+
+    // WW = 10
+    DW_shifter #(.data_width(32), .sh_width(6))
+    shift_word_0 ( .data_in(rA[0:31]),   .data_tc(data_tc_ctrl),   .sh(shift_w_0),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_w[0:31]) );
+
+    DW_shifter #(.data_width(32), .sh_width(6))
+    shift_word_1 ( .data_in(rA[32:63]),   .data_tc(data_tc_ctrl),   .sh(shift_w_1),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_w[32:63]) );    
+
+    // WW = 11
+    DW_shifter #(.data_width(64), .sh_width(7))
+    shift_dword_0 ( .data_in(rA[0:63]),   .data_tc(data_tc_ctrl),   .sh(shift_d_0),
+         .sh_tc(1'b1),   .sh_mode(1'b1),
+         .data_out(shift_out_d[0:63]) );    
+
+    //---------------------------------------------------------------------------------
+
+    // div 
+    wire [0:DATA_WIDTH-1] quotient_b, quotient_h, quotient_w, quotient_d;
+    wire [0:DATA_WIDTH-1] remainder_b, remainder_h, remainder_w, remainder_d;
+    wire [0:DATA_WIDTH-1] divisor = ((function_code == VDIV) || (function_code == VMOD)) ? rB : 64'd1;
+
+    // WW = 00
+    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_b_0 (.a(rA[0:7]), .b(divisor[0:7]),
+        .quotient(quotient_b[0:7]), .remainder(remainder_b[0:7]),
+        .divide_by_0());
+
+    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_b_1 (.a(rA[8:15]), .b(divisor[8:15]),
+        .quotient(quotient_b[8:15]), .remainder(remainder_b[8:15]),
+        .divide_by_0());  
+
+    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_b_2 (.a(rA[16:23]), .b(divisor[16:23]),
+        .quotient(quotient_b[16:23]), .remainder(remainder_b[16:23]),
+        .divide_by_0());
+
+    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_b_3 (.a(rA[24:31]), .b(divisor[24:31]),
+        .quotient(quotient_b[24:31]), .remainder(remainder_b[24:31]),
+        .divide_by_0());   
+
+    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_b_4 (.a(rA[32:39]), .b(divisor[32:39]),
+        .quotient(quotient_b[32:39]), .remainder(remainder_b[32:39]),
+        .divide_by_0());
+
+    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_b_5 (.a(rA[40:47]), .b(divisor[40:47]),
+        .quotient(quotient_b[40:47]), .remainder(remainder_b[40:47]),
+        .divide_by_0());  
+
+    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_b_6 (.a(rA[48:55]), .b(divisor[48:55]),
+        .quotient(quotient_b[48:55]), .remainder(remainder_b[48:55]),
+        .divide_by_0());
+
+    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_b_7 (.a(rA[56:63]), .b(divisor[56:63]),
+        .quotient(quotient_b[56:63]), .remainder(remainder_b[56:63]),
+        .divide_by_0());
+
+    // WW = 01
+    DW_div #(.width(16), .width(16), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_h_0 (.a(rA[0:15]), .b(divisor[0:15]),
+        .quotient(quotient_h[0:15]), .remainder(remainder_h[0:15]),
+        .divide_by_0());
+
+    DW_div #(.width(16), .width(16), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_h_1 (.a(rA[16:31]), .b(divisor[16:31]),
+        .quotient(quotient_h[16:31]), .remainder(remainder_h[16:31]),
+        .divide_by_0());  
+
+    DW_div #(.width(16), .width(16), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_h_2 (.a(rA[32:47]), .b(divisor[32:47]),
+        .quotient(quotient_h[32:47]), .remainder(remainder_h[32:47]),
+        .divide_by_0());
+
+    DW_div #(.width(16), .width(16), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_h_3 (.a(rA[48:63]), .b(divisor[48:63]),
+        .quotient(quotient_h[48:63]), .remainder(remainder_h[48:63]),
+        .divide_by_0()); 
+
+    // WW = 10
+    DW_div #(.width(32), .width(32), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_w_0 (.a(rA[0:31]), .b(divisor[0:31]),
+        .quotient(quotient_w[0:31]), .remainder(remainder_w[0:31]),
+        .divide_by_0());
+
+    DW_div #(.width(32), .width(32), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_w_1 (.a(rA[32:63]), .b(divisor[32:63]),
+        .quotient(quotient_w[32:63]), .remainder(remainder_w[32:63]),
+        .divide_by_0());
+
+    // WW = 11
+    DW_div #(.width(64), .width(64), .tc_mode(1'b0), .rem_mode(1'b0))
+    div_d_0 (.a(rA[0:63]), .b(divisor[0:63]),
+        .quotient(quotient_d[0:63]), .remainder(remainder_d[0:63]),
+        .divide_by_0());
+
+    //----------------------------------------------------------------
+
+    // sqrt
+    wire [0:DATA_WIDTH-1] sqrt_b, sqrt_h, sqrt_w, sqrt_d;
+
+    // WW = 00
+    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    sqrt_b_0 (.a(rA[0:7]), .root(sqrt_b[4:7]));
+
+    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    sqrt_b_1 (.a(rA[8:15]), .root(sqrt_b[12:15]));
+
+    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    sqrt_b_2 (.a(rA[16:23]), .root(sqrt_b[20:23]));
+
+    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    sqrt_b_3 (.a(rA[24:31]), .root(sqrt_b[28:31]));
+
+    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    sqrt_b_4 (.a(rA[32:39]), .root(sqrt_b[36:39]));
+
+    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    sqrt_b_5 (.a(rA[40:47]), .root(sqrt_b[44:47]));
+
+    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    sqrt_b_6 (.a(rA[48:55]), .root(sqrt_b[52:55]));
+
+    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0))
+    sqrt_b_7 (.a(rA[56:63]), .root(sqrt_b[60:63]));
+
+    assign sqrt_b[0:3]   = 4'b0;
+    assign sqrt_b[8:11]  = 4'b0;
+    assign sqrt_b[16:19] = 4'b0;
+    assign sqrt_b[24:27] = 4'b0;
+    assign sqrt_b[32:35] = 4'b0;
+    assign sqrt_b[40:43] = 4'b0;
+    assign sqrt_b[48:51] = 4'b0;
+    assign sqrt_b[56:59] = 4'b0;
+
+    // WW = 01
+    DW_sqrt #(.radicand_width(16), .tc_mode(1'b0)) 
+    sqrt_h_0 (.a(rA[0:15]), .root(sqrt_h[8:15]));
+
+    DW_sqrt #(.radicand_width(16), .tc_mode(1'b0)) 
+    sqrt_h_1 (.a(rA[16:31]), .root(sqrt_h[24:31]));
+
+    DW_sqrt #(.radicand_width(16), .tc_mode(1'b0)) 
+    sqrt_h_2 (.a(rA[32:47]), .root(sqrt_h[40:47]));
+
+    DW_sqrt #(.radicand_width(16), .tc_mode(1'b0)) 
+    sqrt_h_3 (.a(rA[48:63]), .root(sqrt_h[56:63]));
+
+    assign sqrt_h[0:7]   = 8'b0;
+    assign sqrt_h[16:23] = 8'b0;
+    assign sqrt_h[32:39] = 8'b0;
+    assign sqrt_h[48:55] = 8'b0;
+
+    // WW = 10
+    DW_sqrt #(.radicand_width(32), .tc_mode(1'b0)) 
+    sqrt_w_0 (.a(rA[0:31]), .root(sqrt_w[16:31]));
+
+    DW_sqrt #(.radicand_width(32), .tc_mode(1'b0)) 
+    sqrt_w_1 (.a(rA[32:63]), .root(sqrt_w[48:63]));
+
+    assign sqrt_w[0:15]   = 16'b0;
+    assign sqrt_w[32:47]  = 16'b0;
+
+    // WW = 11
+    DW_sqrt #(.radicand_width(64), .tc_mode(1'b0)) 
+    sqrt_d_0 (.a(rA[0:63]), .root(sqrt_d[32:63]));
+
+    assign sqrt_d[0:31] = 32'b0;
 
     // assigning out
     always@(*) begin    
@@ -213,89 +596,29 @@ module ALU #(
                     end
                     VSLL: begin
                         case (WW)
-                            2'b00: begin
-                                out[0:7]   = rA[0:7]   << rB[5:7];
-                                out[8:15]  = rA[8:15]  << rB[13:15];
-                                out[16:23] = rA[16:23] << rB[21:23];
-                                out[24:31] = rA[24:31] << rB[29:31];
-                                out[32:39] = rA[32:39] << rB[37:39];
-                                out[40:47] = rA[40:47] << rB[45:47];
-                                out[48:55] = rA[48:55] << rB[53:55];
-                                out[56:63] = rA[56:63] << rB[61:63];
-                            end
-                            2'b01: begin 
-                                out[0:15]  = rA[0:15]  << rB[12:15];
-                                out[16:31] = rA[16:31] << rB[28:31];
-                                out[32:47] = rA[32:47] << rB[44:47];
-                                out[48:63] = rA[48:63] << rB[60:63];
-                            end
-                            2'b10: begin 
-                                out[0:31]  = rA[0:31]  << rB[27:31];
-                                out[32:63] = rA[32:63] << rB[59:63];
-                            end
-                            2'b11: begin 
-                                out        = rA << rB[58:63];
-                            end
-                            default: out   = 64'd0;
+                            2'b00: out = shift_out_b;
+                            2'b01: out = shift_out_h;
+                            2'b10: out = shift_out_w;
+                            2'b11: out = shift_out_d;
+                            default: out = 64'd0;
                         endcase
                     end
                     VSRL: begin
                         case (WW)
-                            2'b00: begin
-                                out[0:7]   = rA[0:7]   >> rB[5:7];
-                                out[8:15]  = rA[8:15]  >> rB[13:15];
-                                out[16:23] = rA[16:23] >> rB[21:23];
-                                out[24:31] = rA[24:31] >> rB[29:31];
-                                out[32:39] = rA[32:39] >> rB[37:39];
-                                out[40:47] = rA[40:47] >> rB[45:47];
-                                out[48:55] = rA[48:55] >> rB[53:55];
-                                out[56:63] = rA[56:63] >> rB[61:63];
-                            end
-                            2'b01: begin 
-                                out[0:15]  = rA[0:15]  >> rB[12:15];
-                                out[16:31] = rA[16:31] >> rB[28:31];
-                                out[32:47] = rA[32:47] >> rB[44:47];
-                                out[48:63] = rA[48:63] >> rB[60:63];
-                            end
-                            2'b10: begin 
-                                out[0:31]  = rA[0:31]  >> rB[27:31];
-                                out[32:63] = rA[32:63] >> rB[59:63];
-                            end
-                            2'b11: begin 
-                                out        = rA >> rB[58:63];
-                            end
-                            default: out   = 64'd0;
+                            2'b00: out = shift_out_b;
+                            2'b01: out = shift_out_h;
+                            2'b10: out = shift_out_w;
+                            2'b11: out = shift_out_d;
+                            default: out = 64'd0;
                         endcase
                     end
                     VSRA: begin
                         case (WW)
-                            2'b00: begin
-                                out[0:7]   = $signed(rA[0:7])   >>> rB[5:7];
-                                out[8:15]  = $signed(rA[8:15])  >>> rB[13:15];
-                                out[16:23] = $signed(rA[16:23]) >>> rB[21:23];
-                                out[24:31] = $signed(rA[24:31]) >>> rB[29:31];
-                                out[32:39] = $signed(rA[32:39]) >>> rB[37:39];
-                                out[40:47] = $signed(rA[40:47]) >>> rB[45:47];
-                                out[48:55] = $signed(rA[48:55]) >>> rB[53:55];
-                                out[56:63] = $signed(rA[56:63]) >>> rB[61:63];
-                            end
-
-                            2'b01: begin 
-                                out[0:15]  = $signed(rA[0:15])  >>> rB[12:15];
-                                out[16:31] = $signed(rA[16:31]) >>> rB[28:31];
-                                out[32:47] = $signed(rA[32:47]) >>> rB[44:47];
-                                out[48:63] = $signed(rA[48:63]) >>> rB[60:63];
-                            end
-
-                            2'b10: begin 
-                                out[0:31]  = $signed(rA[0:31])  >>> rB[27:31];
-                                out[32:63] = $signed(rA[32:63]) >>> rB[59:63];
-                            end
-
-                            2'b11: begin 
-                                out = $signed(rA) >>> rB[58:63];
-                            end
-                            default: out   = 64'd0;
+                            2'b00: out = shift_out_b;
+                            2'b01: out = shift_out_h;
+                            2'b10: out = shift_out_w;
+                            2'b11: out = shift_out_d;
+                            default: out = 64'd0;
                         endcase
                     end
                     VRTTH: begin
@@ -328,7 +651,49 @@ module ALU #(
                             default: out = 64'd0;
                         endcase
                     end
-                    
+                    VDIV: begin
+                        case (WW)
+                            2'b00: out = quotient_b;
+                            2'b01: out = quotient_h;
+                            2'b10: out = quotient_w;
+                            2'b11: out = quotient_d; 
+                            default: out = 64'd0;
+                        endcase
+                    end
+                    VMOD: begin
+                        case (WW)
+                            2'b00: out = remainder_b;
+                            2'b01: out = remainder_h;
+                            2'b10: out = remainder_w;
+                            2'b11: out = remainder_d; 
+                            default: out = 64'd0;
+                        endcase
+                    end
+                    VSQEU: begin
+                        case (WW)
+                            2'b00: out = prod_b;
+                            2'b01: out = prod_h;
+                            2'b10: out = prod_w;
+                            default: out = 64'd0;
+                        endcase
+                    end
+                    VSQOU: begin
+                        case (WW)
+                            2'b00: out = prod_b;
+                            2'b01: out = prod_h;
+                            2'b10: out = prod_w;
+                            default: out = 64'd0;
+                        endcase
+                    end
+                    VSQRT: begin
+                        case (WW)
+                            2'b00: out = sqrt_b;
+                            2'b01: out = sqrt_h;
+                            2'b10: out = sqrt_w;
+                            2'b11: out = sqrt_d;
+                            default: out = 64'd0;
+                        endcase
+                    end
                     default: out = 64'd0;
                 endcase
             end

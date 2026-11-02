@@ -1,12 +1,13 @@
 module decoder(
     inst_in, 
-    regfile_we,
-    regfile_rdAddr0, 
-    regfile_rdAddr1,
-    regfile_wrAddr,
-    regfile_wrByteEn,
+    rf_we,
+    rA_addr, 
+    rB_addr,
+    rD_addr,
+    rf_wrByteEn,
     WW,
     function_code,
+    mem_en,
     mem_we,
     mem_rdAddr,
     mem_wrAddr,
@@ -16,15 +17,15 @@ module decoder(
 
     input      [0:31] inst_in;
 
-    output reg        regfile_we;
-    output reg [0:4]  regfile_rdAddr0, regfile_rdAddr1, regfile_wrAddr;
-    output reg [0:7]  regfile_wrByteEn;
+    output reg        rf_we;
+    output reg [0:4]  rA_addr, rB_addr, rD_addr;
+    output reg [0:7]  rf_wrByteEn;
 
     output reg [0:1]  WW;
 
     output reg [0:5]  function_code;
 
-    output reg        mem_we;
+    output reg        mem_en, mem_we;
     output reg [0:15] mem_rdAddr, mem_wrAddr;
 
     output reg [0:15] pc_Addr;
@@ -69,15 +70,16 @@ module decoder(
     always@(*)begin
 
         // initialize
-        regfile_we       = 1'b0;
-        regfile_wrAddr   = 5'd0;
-        regfile_rdAddr0  = 5'd0;
-        regfile_rdAddr1  = 5'd0;
-        regfile_wrByteEn = 8'd0;
+        rf_we       = 1'b0;
+        rD_addr   = 5'd0;
+        rA_addr  = 5'd0;
+        rB_addr  = 5'd0;
+        rf_wrByteEn = 8'd0;
     
         WW               = 2'd0;
         function_code    = 6'd0;
     
+        mem_en           = 1'b0;
         mem_we           = 1'b0;
         mem_rdAddr       = 16'd0;
         mem_wrAddr       = 16'd0;
@@ -87,11 +89,11 @@ module decoder(
 
         case (inst_in[0:5])
             R_ALU: begin
-                if(inst_in[26:31] == 6'd0 || inst_in[26:31] > 6'd18) regfile_we = 1'b0;
-                else                                                 regfile_we = 1'b1;
-                regfile_wrAddr  = inst_in[6:10];    // rD
-                regfile_rdAddr0 = inst_in[11:15];   // rA
-                regfile_rdAddr1 = inst_in[16:20];   // rB
+                if(inst_in[26:31] == 6'd0 || inst_in[26:31] > 6'd18) rf_we = 1'b0;
+                else                                                 rf_we = 1'b1;
+                rD_addr = inst_in[6:10];    // rD
+                rA_addr = inst_in[11:15];   // rA
+                rB_addr = inst_in[16:20];   // rB
 
                 WW              = inst_in[24:25];
                 function_code   = inst_in[26:31];
@@ -99,82 +101,85 @@ module decoder(
                 op_type         = 3'b001; // R_ALU
 
                 case (inst_in[21:23])
-                    participate_A: regfile_wrByteEn = 8'b1111_1111;
-                    participate_U: regfile_wrByteEn = 8'b1111_0000;
-                    participate_D: regfile_wrByteEn = 8'b0000_1111;
+                    participate_A: rf_wrByteEn = 8'b1111_1111;
+                    participate_U: rf_wrByteEn = 8'b1111_0000;
+                    participate_D: rf_wrByteEn = 8'b0000_1111;
                     participate_E: begin
                         case (inst_in[24:25])
-                            2'b00:      regfile_wrByteEn = 8'b1010_1010;
-                            2'b01:      regfile_wrByteEn = 8'b1100_1100;
-                            2'b10:      regfile_wrByteEn = 8'b1111_0000;
-                            2'b11:      regfile_wrByteEn = 8'b1111_1111;
-                            default:    regfile_wrByteEn = 8'b0000_0000;
+                            2'b00:      rf_wrByteEn = 8'b1010_1010;
+                            2'b01:      rf_wrByteEn = 8'b1100_1100;
+                            2'b10:      rf_wrByteEn = 8'b1111_0000;
+                            2'b11:      rf_wrByteEn = 8'b1111_1111;
+                            default:    rf_wrByteEn = 8'b0000_0000;
                         endcase
                     end
                     participate_O: begin
                         case (inst_in[24:25])
-                            2'b00:      regfile_wrByteEn = 8'b0101_0101;
-                            2'b01:      regfile_wrByteEn = 8'b0011_0011;
-                            2'b10:      regfile_wrByteEn = 8'b0000_1111;
-                            2'b11:      regfile_wrByteEn = 8'b0000_0000;
-                            default:    regfile_wrByteEn = 8'b0000_0000;
+                            2'b00:      rf_wrByteEn = 8'b0101_0101;
+                            2'b01:      rf_wrByteEn = 8'b0011_0011;
+                            2'b10:      rf_wrByteEn = 8'b0000_1111;
+                            2'b11:      rf_wrByteEn = 8'b0000_0000;
+                            default:    rf_wrByteEn = 8'b0000_0000;
                         endcase
                     end
-                    default:            regfile_wrByteEn = 8'b0000_0000;
+                    default:            rf_wrByteEn = 8'b0000_0000;
                 endcase
             end
 
             M_LD: begin
-                regfile_we       = 1'b1;
-                regfile_wrAddr   = inst_in[6:10];
-                regfile_wrByteEn = 8'b1111_1111;
+                rf_we       = 1'b1;
+                rD_addr     = inst_in[6:10];
+                rf_wrByteEn = 8'b1111_1111;
 
-                mem_we           = 1'b0;
-                mem_rdAddr       = inst_in[16:31];
+                mem_en     = 1'b1;
+                mem_we     = 1'b0;
+                mem_rdAddr = inst_in[16:31];
 
-                op_type          = 3'b010; // LD
+                op_type    = 3'b010; // LD
             end
 
             M_SD: begin
-                regfile_we       = 1'b0;
-                regfile_rdAddr0  = inst_in[6:10];
+                rf_we      = 1'b0;
+                rA_addr    = inst_in[6:10];
 
-                mem_we           = 1'b1;
-                mem_wrAddr       = inst_in[16:31];
+                mem_en     = 1'b1;
+                mem_we     = 1'b1;
+                mem_wrAddr = inst_in[16:31];
 
-                op_type          = 3'b011; // SD
+                op_type    = 3'b011; // SD
             end
 
             R_BEZ: begin
-                regfile_we       = 1'b0;
-                regfile_rdAddr0  = inst_in[6:10];
-                pc_Addr          = inst_in[16:31];
-                op_type          = 2'b100; // BEZ
+                rf_we    = 1'b0;
+                rA_addr  = inst_in[6:10];
+                pc_Addr  = inst_in[16:31];
+                op_type  = 2'b100; // BEZ
             end
 
             R_BNEZ: begin
-                regfile_we       = 1'b0;
-                regfile_rdAddr0  = inst_in[6:10];
-                pc_Addr          = inst_in[16:31];
-                op_type          = 3'b101; // BNEZ
+                rf_we    = 1'b0;
+                rA_addr  = inst_in[6:10];
+                pc_Addr  = inst_in[16:31];
+                op_type  = 3'b101; // BNEZ
             end
 
             default: begin
-                regfile_we       = 1'b0;
-                regfile_wrAddr   = 5'd0;
-                regfile_rdAddr0  = 5'd0;
-                regfile_rdAddr1  = 5'd0;
-                regfile_wrByteEn = 8'd0;
+                rf_we    = 1'b0;
+                rD_addr  = 5'd0;
+                rA_addr  = 5'd0;
+                rB_addr  = 5'd0;
+                rf_wrByteEn = 8'd0;
             
-                WW               = 2'd0;
-                function_code    = 6'd0;
-        
-                mem_we           = 1'b0;
-                mem_rdAddr       = 16'd0;
-                mem_wrAddr       = 16'd0;
+                WW            = 2'd0;
+                function_code = 6'd0;
+
+                mem_en        = 1'b0;
+                mem_we        = 1'b0;
+                mem_rdAddr    = 16'd0;
+                mem_wrAddr    = 16'd0;
             
-                pc_Addr          = 16'd0;
-                op_type          = 3'b000;
+                pc_Addr       = 16'd0;
+                op_type       = 3'b000;
             end
         endcase
     end

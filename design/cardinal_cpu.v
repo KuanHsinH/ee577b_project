@@ -35,160 +35,142 @@ module cardinal_cpu #(
 );
 
     // 6 bit function code
-    localparam VAND   = 000001,
-               VOR    = 000010,
-               VXOR   = 000011,
-               VNOT   = 000100,
-               VMOV   = 000101,
-               VADD   = 000110,
-               VSUB   = 000111,
-               VMULEU = 001000,
-               VMULOU = 001001,
-               VSLL   = 001010,
-               VSRL   = 001011,
-               VSRA   = 001100,
-               VRTTH  = 001101,
-               VDIV   = 001110,
-               VMOD   = 001111,
-               VSQEU  = 010000,
-               VSQOU  = 010001,
-               VSQRT  = 010010;
+    localparam VAND   = 6'b000001,
+               VOR    = 6'b000010,
+               VXOR   = 6'b000011,
+               VNOT   = 6'b000100,
+               VMOV   = 6'b000101,
+               VADD   = 6'b000110,
+               VSUB   = 6'b000111,
+               VMULEU = 6'b001000,
+               VMULOU = 6'b001001,
+               VSLL   = 6'b001010,
+               VSRL   = 6'b001011,
+               VSRA   = 6'b001100,
+               VRTTH  = 6'b001101,
+               VDIV   = 6'b001110,
+               VMOD   = 6'b001111,
+               VSQEU  = 6'b010000,
+               VSQOU  = 6'b010001,
+               VSQRT  = 6'b010010;
     
     // 6 bit opcode
-    localparam R_ALU  = 101010,
-               M_LD   = 100000,
-               M_SD   = 100001,
-               R_BEZ  = 100010,
-               R_BNEZ = 100011,
-               VNOP   = 111100;
+    localparam R_ALU  = 6'b101010,
+               M_LD   = 6'b100000,
+               M_SD   = 6'b100001,
+               R_BEZ  = 6'b100010,
+               R_BNEZ = 6'b100011,
+               VNOP   = 6'b111100;
 
     // 3 bit participation
-    localparam participate_A = 000,
-               participate_U = 001,
-               participate_D = 010,
-               participate_E = 011,
-               participate_O = 100;
+    localparam participate_A = 3'b000,
+               participate_U = 3'b001,
+               participate_D = 3'b010,
+               participate_E = 3'b011,
+               participate_O = 3'b100;
 
-    // IF/ID
-    reg [0:INST_WIDTH-1]     IF_ID_reg; // only the instruction
+    // Stall and branch signals
+    wire stall;
+    reg br_taken;
+    reg [0:INST_WIDTH-1] br_addr;
 
-    // ID/EX wire
-    wire [0:REG_ADDR_WIDTH-1] decoder_regfile_rdAddr0, decoder_regfile_rdAddr1;
-    wire [0:DATA_WIDTH-1]     regfile_rA, regfile_rB;
+    //--------------------------------------------------------------------------
 
-    wire                      decoder_regfile_we;
-    wire [0:REG_ADDR_WIDTH-1] decoder_regfile_wrAddr;
-    wire [0:7]                decoder_regfile_wrByteEn;
+    // IF stage
+    reg [0:INST_WIDTH-1] pc;  
+    always @(posedge clk) begin
+        if(reset) pc <= 0;
+        else begin
+            if(stall) pc <= pc;
+            else begin
+                pc <= br_taken ? br_addr : pc + 4;
+            end
+        end
+    end
 
-    wire [0:1]                decoder_WW;
-    wire [0:5]                decoder_function_code;
-
-    wire                      decoder_mem_we;
-    wire [0:MEM_ADDR_WIDTH-1] decoder_mem_rdAddr, decoder_mem_wrAddr;
-
-    wire [0:2]                decoder_op_type;
-
-    // ID/EX reg
-    reg [0:DATA_WIDTH-1]     ID_EX_rA, ID_EX_rB;
-
-    reg                      ID_EX_regfile_we;
-    reg [0:REG_ADDR_WIDTH-1] ID_EX_regfile_wrAddr;
-    reg [0:7]                ID_EX_regfile_wrByteEn;
-
-    reg [0:1]                ID_EX_WW;
-    reg [0:5]                ID_EX_function_code;
-
-    reg                      ID_EX_mem_we;
-    reg [0:MEM_ADDR_WIDTH-1] ID_EX_mem_rdAddr, ID_EX_mem_wrAddr;
-
-    reg [0:2]                ID_EX_op_type;
-    
-    // decoder module
-    decoder d1(
-        .inst_in(IF_ID_reg),
-
-        .regfile_rdAddr0(decoder_regfile_rdAddr0),
-        .regfile_rdAddr1(decoder_regfile_rdAddr1),
-
-        .regfile_we(decoder_regfile_we),
-        .regfile_wrAddr(decoder_regfile_wrAddr),
-        .regfile_wrByteEn(decoder_regfile_wrByteEn),
-
-        .WW(decoder_WW),
-        .function_code(decoder_function_code),
-
-        .mem_we(decoder_mem_we),
-        .mem_rdAddr(decoder_mem_rdAddr),
-        .mem_wrAddr(decoder_mem_wrAddr),
-
-        .pc_Addr(decoder_pc_Addr),
-
-        .op_type(decoder_op_type)
-    );
-
-    // regfile module
-    register_file(
-        .clk(clk),     
-        .reset(reset),   
-
-        // shoulg get from WB stage
-        .wrEn(),    
-        .wrAddr(),  
-        .wrData(),  
-        .wrByteEn(),
-
-        .rdAddr0(decoder_regfile_rdAddr0), 
-        .rdData0(regfile_rA), 
-        .rdAddr1(decoder_regfile_rdAddr1), 
-        .rdData1(regfile_rB)
-    );
-
-    // IF/ID reg statement
+    // IF/ID reg
+    reg [0:INST_WIDTH-1] IF_ID_reg; // only the instruction
     always @(posedge clk) begin
         if(reset) IF_ID_reg <= 'd0;
         else      IF_ID_reg <= inst_in;
     end
 
-    // ID/EX reg statement
-    always @(posedge clk) begin
-        if(reset) begin
-            ID_EX_rA                <= 'd0;
-            ID_EX_rB                <= 'd0;
+    //--------------------------------------------------------------------------
 
-            ID_EX_regfile_we        <= 1'b0;
-            ID_EX_regfile_wrAddr    <= 'd0;
-            ID_EX_regfile_wrByteEn  <= 'd0;
-
-            ID_EX_WW                <= 'd0;
-            ID_EX_function_code     <= 'd0;
-
-            ID_EX_mem_we            <= 1'b0;
-            ID_EX_mem_rdAddr        <= 'd0;
-            ID_EX_mem_wrAddr        <= 'd0;
-
-            ID_EX_pc_Addr           <= 'd0;
-            ID_EX_op_type           <= 'd0;
-        end
-        else begin
-            ID_EX_rA                <= regfile_rA;
-            ID_EX_rB                <= regfile_rB;
-
-            ID_EX_regfile_we        <= decoder_regfile_we;
-            ID_EX_regfile_wrAddr    <= decoder_regfile_wrAddr;
-            ID_EX_regfile_wrByteEn  <= decoder_regfile_wrByteEn;
-
-            ID_EX_WW                <= decoder_WW;
-            ID_EX_function_code     <= decoder_function_code;
-
-            ID_EX_mem_we            <= decoder_mem_we;
-            ID_EX_mem_rdAddr        <= decoder_mem_rdAddr;
-            ID_EX_mem_wrAddr        <= decoder_mem_wrAddr;
-
-            ID_EX_pc_Addr           <= decoder_pc_Addr;
-            ID_EX_op_type           <= decoder_op_type;
-        end
-    end
+    // ID stage
+    wire                      rf_we_ID;
+    wire [0:7]                rf_wrByteEn_ID;
+    wire [0:REG_ADDR_WIDTH-1] rA_addr_ID, rB_addr_ID, rD_addr_ID;
     
+    wire        mem_en_ID, mem_we_ID;
+    wire [0:15] mem_rdAddr_ID,  mem_wrAddr_ID;
+
+    wire [0:1]  WW_ID;
+    wire [0:5]  function_code_ID;
+    wire [0:15] imm_addr_ID;
+    wire [0:2]  op_type_ID;
+    
+    decoder dc1(
+        .inst_in(IF_ID_reg),
+
+        .rf_we(rf_wrByteEn_ID),
+        .rA_addr(rA_addr_ID),
+        .rA_addr(rB_addr_ID),
+        .rD_addr(rD_addr_ID),
+        .rf_wrByteEn(rf_wrByteEn_ID),
+
+        .mem_en(mem_en_ID),
+        .mem_we(mem_we_ID),
+        .mem_rdAddr(mem_rdAddr_ID),
+        .mem_wrAddr(mem_wrAddr_ID),
+
+        .WW(WW_ID),
+        .function_code(function_code_ID),
+        .pc_Addr(imm_addr_ID),
+        .op_type(op_type_ID)
+    );
+
+    // come from WB
+    wire rf_wrEn;
+    wire [0:7] rf_wrByteEn;
+    wire [0:REG_ADDR_WIDTH-1] rf_wrAddr;
+    wire [0:DATA_WIDTH-1]     rf_wrData;
+
+    // come from ID
+    wire [0:REG_ADDR_WIDTH-1] rf_rdAddr0, rf_rdAddr1;
+    wire [0:DATA_WIDTH-1]     rf_rdData0, rf_rdData1;
+
+    assign rf_rdAddr1 = rB_addr_ID;
+    assign rf_rdAddr0 = (op_type_ID == R_BEZ) || (op_type_ID == R_BNEZ) || (op_type_ID == M_SD)
+                        ? rD_addr_ID : rA_addr_ID;
+
+    register_file rf1(
+        .clk(clk),     
+        .reset(reset),   
+
+        .wrEn(rf_wrEn),    
+        .wrAddr(rf_wrAddr),  
+        .wrData(rf_wrData),  
+        .wrByteEn(rf_wrByteEn),
+
+        .rdAddr0(rf_rdAddr0), 
+        .rdAddr1(rf_rdAddr1),
+
+        .rdData0(rf_rdData0),  
+        .rdData1(rf_rdData1)  
+    );
+
+    // forwarding
+    reg [0:DATA_WIDTH-1] forward_rA_ID, forward_rB_ID, forward_rD_ID;
+    
+    // branch
+    always @(*) begin
+        if(((op_type_ID == R_BEZ) && (forward_rD_ID == 0)) 
+        || ((op_type_ID == R_BNEZ) && (forward_rD_ID != 0))) begin
+             br_taken = 1'b1;
+        end
+        else br_taken = 1'b0;
+    end
 
 endmodule
 
