@@ -2,25 +2,15 @@
 `include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW_sqrt.v"
 `include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW01_addsub.v"
 `include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW02_mult.v"
-`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW_div.v"
+`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW_shifter.v"
 
 module ALU #(
-    parameter DATA_WIDTH = 64;
+    parameter DATA_WIDTH = 64
 ) (
     rA, rB,
     function_code, WW,
-    op_type,
-    pc_Addr,
     out
 );
-
-    // op_type
-    localparam R_ALU  = 3'b001,
-               M_LD   = 3'b010,
-               M_SD   = 3'b011,
-               R_BEZ  = 3'b100,
-               R_BNEZ = 3'b101,
-               VNOP   = 3'b000;
 
     // 6 bit function code
     localparam VAND   = 6'b000001,
@@ -45,8 +35,6 @@ module ALU #(
     input [0:DATA_WIDTH-1] rA, rB;
     input [0:5]            function_code;
     input [0:1]            WW;
-    input [0:2]            op_type;
-    input [0:15]           pc_Addr;
     
     output reg [0:DATA_WIDTH-1] out;
 
@@ -55,6 +43,8 @@ module ALU #(
     // add/sub
     wire  add_sub = (function_code == VADD) ? 1'b0 : 1'b1;
     wire  [0:DATA_WIDTH-1] sum_diff;
+    wire  [0:6] ci;
+    wire  [0:7] co;
 
     assign ci[0] = (WW == 2'b00) ? 1'b0 : co[1];
     assign ci[1] = ((WW == 2'b00) || (WW == 2'b01)) ? 1'b0 : co[2];
@@ -103,7 +93,7 @@ module ALU #(
 
     wire [0:DATA_WIDTH-1] prod_b, prod_h, prod_w;
 
-    wire [0:(DATA_WIDTH/2)-1] mul_inA, mul_inB;
+    reg [0:(DATA_WIDTH/2)-1] mul_inA, mul_inB;
 
     always @(*) begin
         case (function_code)
@@ -209,7 +199,7 @@ module ALU #(
     mul4 ( .A(mul_inA[0:15]), .B(mul_inB[0:15]), .TC(1'b0), .PRODUCT(prod_h[0:31]) );
 
     DW02_mult #(.A_width(16), .B_width(16))
-    mul5 ( .A(mul_inA[16:31]), .B(mul_inB)[16:31], .TC(1'b0), .PRODUCT(prod_h[32:63]) );
+    mul5 ( .A(mul_inA[16:31]), .B(mul_inB[16:31]), .TC(1'b0), .PRODUCT(prod_h[32:63]) );
 
     // WW = 10
     DW02_mult #(.A_width(32), .B_width(32))
@@ -363,7 +353,7 @@ module ALU #(
     DW_shifter #(.data_width(8), .sh_width(4))
     shift_byte_7 ( .data_in(rA[56:63]),   .data_tc(data_tc_ctrl),   .sh(shift_b_7),
          .sh_tc(1'b1),   .sh_mode(1'b1),
-         .data_out(shift_out_b[55:63]) );
+         .data_out(shift_out_b[56:63]) );
 
     // WW = 01
     DW_shifter #(.data_width(16), .sh_width(5))
@@ -411,80 +401,80 @@ module ALU #(
     wire [0:DATA_WIDTH-1] divisor = ((function_code == VDIV) || (function_code == VMOD)) ? rB : 64'd1;
 
     // WW = 00
-    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(8, 8, 1'b0, 1'b0)
     div_b_0 (.a(rA[0:7]), .b(divisor[0:7]),
         .quotient(quotient_b[0:7]), .remainder(remainder_b[0:7]),
         .divide_by_0());
 
-    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(8, 8, 1'b0, 1'b0)
     div_b_1 (.a(rA[8:15]), .b(divisor[8:15]),
         .quotient(quotient_b[8:15]), .remainder(remainder_b[8:15]),
         .divide_by_0());  
 
-    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(8, 8, 1'b0, 1'b0)
     div_b_2 (.a(rA[16:23]), .b(divisor[16:23]),
         .quotient(quotient_b[16:23]), .remainder(remainder_b[16:23]),
         .divide_by_0());
 
-    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(8, 8, 1'b0, 1'b0)
     div_b_3 (.a(rA[24:31]), .b(divisor[24:31]),
         .quotient(quotient_b[24:31]), .remainder(remainder_b[24:31]),
         .divide_by_0());   
 
-    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(8, 8, 1'b0, 1'b0)
     div_b_4 (.a(rA[32:39]), .b(divisor[32:39]),
         .quotient(quotient_b[32:39]), .remainder(remainder_b[32:39]),
         .divide_by_0());
 
-    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(8, 8, 1'b0, 1'b0)
     div_b_5 (.a(rA[40:47]), .b(divisor[40:47]),
         .quotient(quotient_b[40:47]), .remainder(remainder_b[40:47]),
         .divide_by_0());  
 
-    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(8, 8, 1'b0, 1'b0)
     div_b_6 (.a(rA[48:55]), .b(divisor[48:55]),
         .quotient(quotient_b[48:55]), .remainder(remainder_b[48:55]),
         .divide_by_0());
 
-    DW_div #(.width(8), .width(8), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(8, 8, 1'b0, 1'b0)
     div_b_7 (.a(rA[56:63]), .b(divisor[56:63]),
         .quotient(quotient_b[56:63]), .remainder(remainder_b[56:63]),
         .divide_by_0());
 
     // WW = 01
-    DW_div #(.width(16), .width(16), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(16, 16, 1'b0, 1'b0)
     div_h_0 (.a(rA[0:15]), .b(divisor[0:15]),
         .quotient(quotient_h[0:15]), .remainder(remainder_h[0:15]),
         .divide_by_0());
 
-    DW_div #(.width(16), .width(16), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(16, 16, 1'b0, 1'b0)
     div_h_1 (.a(rA[16:31]), .b(divisor[16:31]),
         .quotient(quotient_h[16:31]), .remainder(remainder_h[16:31]),
         .divide_by_0());  
 
-    DW_div #(.width(16), .width(16), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(16, 16, 1'b0, 1'b0)
     div_h_2 (.a(rA[32:47]), .b(divisor[32:47]),
         .quotient(quotient_h[32:47]), .remainder(remainder_h[32:47]),
         .divide_by_0());
 
-    DW_div #(.width(16), .width(16), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(16, 16, 1'b0, 1'b0)
     div_h_3 (.a(rA[48:63]), .b(divisor[48:63]),
         .quotient(quotient_h[48:63]), .remainder(remainder_h[48:63]),
         .divide_by_0()); 
 
     // WW = 10
-    DW_div #(.width(32), .width(32), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(32, 32, 1'b0, 1'b0)
     div_w_0 (.a(rA[0:31]), .b(divisor[0:31]),
         .quotient(quotient_w[0:31]), .remainder(remainder_w[0:31]),
         .divide_by_0());
 
-    DW_div #(.width(32), .width(32), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(32, 32, 1'b0, 1'b0)
     div_w_1 (.a(rA[32:63]), .b(divisor[32:63]),
         .quotient(quotient_w[32:63]), .remainder(remainder_w[32:63]),
         .divide_by_0());
 
     // WW = 11
-    DW_div #(.width(64), .width(64), .tc_mode(1'b0), .rem_mode(1'b0))
+    DW_div #(64, 64, 1'b0, 1'b0)
     div_d_0 (.a(rA[0:63]), .b(divisor[0:63]),
         .quotient(quotient_d[0:63]), .remainder(remainder_d[0:63]),
         .divide_by_0());
@@ -495,28 +485,28 @@ module ALU #(
     wire [0:DATA_WIDTH-1] sqrt_b, sqrt_h, sqrt_w, sqrt_d;
 
     // WW = 00
-    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    DW_sqrt #(8, 1'b0)
     sqrt_b_0 (.a(rA[0:7]), .root(sqrt_b[4:7]));
 
-    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    DW_sqrt #(8, 1'b0)
     sqrt_b_1 (.a(rA[8:15]), .root(sqrt_b[12:15]));
 
-    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    DW_sqrt #(8, 1'b0)
     sqrt_b_2 (.a(rA[16:23]), .root(sqrt_b[20:23]));
 
-    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    DW_sqrt #(8, 1'b0)
     sqrt_b_3 (.a(rA[24:31]), .root(sqrt_b[28:31]));
 
-    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    DW_sqrt #(8, 1'b0)
     sqrt_b_4 (.a(rA[32:39]), .root(sqrt_b[36:39]));
 
-    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    DW_sqrt #(8, 1'b0)
     sqrt_b_5 (.a(rA[40:47]), .root(sqrt_b[44:47]));
 
-    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0)) 
+    DW_sqrt #(8, 1'b0)
     sqrt_b_6 (.a(rA[48:55]), .root(sqrt_b[52:55]));
 
-    DW_sqrt #(.radicand_width(8), .tc_mode(1'b0))
+    DW_sqrt #(8, 1'b0)
     sqrt_b_7 (.a(rA[56:63]), .root(sqrt_b[60:63]));
 
     assign sqrt_b[0:3]   = 4'b0;
@@ -529,16 +519,16 @@ module ALU #(
     assign sqrt_b[56:59] = 4'b0;
 
     // WW = 01
-    DW_sqrt #(.radicand_width(16), .tc_mode(1'b0)) 
+    DW_sqrt #(16, 1'b0)
     sqrt_h_0 (.a(rA[0:15]), .root(sqrt_h[8:15]));
 
-    DW_sqrt #(.radicand_width(16), .tc_mode(1'b0)) 
+    DW_sqrt #(16, 1'b0)
     sqrt_h_1 (.a(rA[16:31]), .root(sqrt_h[24:31]));
 
-    DW_sqrt #(.radicand_width(16), .tc_mode(1'b0)) 
+    DW_sqrt #(16, 1'b0)
     sqrt_h_2 (.a(rA[32:47]), .root(sqrt_h[40:47]));
 
-    DW_sqrt #(.radicand_width(16), .tc_mode(1'b0)) 
+    DW_sqrt #(16, 1'b0)
     sqrt_h_3 (.a(rA[48:63]), .root(sqrt_h[56:63]));
 
     assign sqrt_h[0:7]   = 8'b0;
@@ -547,153 +537,145 @@ module ALU #(
     assign sqrt_h[48:55] = 8'b0;
 
     // WW = 10
-    DW_sqrt #(.radicand_width(32), .tc_mode(1'b0)) 
+    DW_sqrt #(32, 1'b0)
     sqrt_w_0 (.a(rA[0:31]), .root(sqrt_w[16:31]));
 
-    DW_sqrt #(.radicand_width(32), .tc_mode(1'b0)) 
+    DW_sqrt #(32, 1'b0)
     sqrt_w_1 (.a(rA[32:63]), .root(sqrt_w[48:63]));
 
     assign sqrt_w[0:15]   = 16'b0;
     assign sqrt_w[32:47]  = 16'b0;
 
     // WW = 11
-    DW_sqrt #(.radicand_width(64), .tc_mode(1'b0)) 
+    DW_sqrt #(64, 1'b0)
     sqrt_d_0 (.a(rA[0:63]), .root(sqrt_d[32:63]));
 
     assign sqrt_d[0:31] = 32'b0;
 
     // assigning out
     always@(*) begin    
-        case (op_type)
-            // NOP
-            VNOP: out = 64'd0; 
+        // R_ALU
+        case (function_code)
+            VAND:   out = rA & rB;
+            VOR:    out = rA | rB;
+            VXOR:   out = rA ^ rB;
+            VNOT:   out = ~rA;
+            VMOV:   out = rA;
+            VADD:   out = sum_diff;
+            VSUB:   out = sum_diff;
+            VMULEU: begin
+                case (WW)
+                    2'b00: out = prod_b;
+                    2'b01: out = prod_h;
+                    2'b10: out = prod_w;
+                    default: out = 64'd0;
+                endcase
+            end
+            VMULOU: begin
+                case (WW)
+                    2'b00: out = prod_b;
+                    2'b01: out = prod_h;
+                    2'b10: out = prod_w;
+                    default: out = 64'd0;
+                endcase
+            end
+            VSLL: begin
+                case (WW)
+                    2'b00: out = shift_out_b;
+                    2'b01: out = shift_out_h;
+                    2'b10: out = shift_out_w;
+                    2'b11: out = shift_out_d;
+                    default: out = 64'd0;
+                endcase
+            end
+            VSRL: begin
+                case (WW)
+                    2'b00: out = shift_out_b;
+                    2'b01: out = shift_out_h;
+                    2'b10: out = shift_out_w;
+                    2'b11: out = shift_out_d;
+                    default: out = 64'd0;
+                endcase
+            end
+            VSRA: begin
+                case (WW)
+                    2'b00: out = shift_out_b;
+                    2'b01: out = shift_out_h;
+                    2'b10: out = shift_out_w;
+                    2'b11: out = shift_out_d;
+                    default: out = 64'd0;
+                endcase
+            end
+            VRTTH: begin
+                case (WW)
+                    2'b00: begin
+                        out[0:7]   = {rA[4:7],   rA[0:3]};
+                        out[8:15]  = {rA[12:15], rA[8:11]};
+                        out[16:23] = {rA[20:23], rA[16:19]};
+                        out[24:31] = {rA[28:31], rA[24:27]};
+                        out[32:39] = {rA[36:39], rA[32:35]};
+                        out[40:47] = {rA[44:47], rA[40:43]};
+                        out[48:55] = {rA[52:55], rA[48:51]};
+                        out[56:63] = {rA[60:63], rA[56:59]};
+                    end
+                    2'b01: begin
+                        out[0:15]  = {rA[8:15],  rA[0:7]};
+                        out[16:31] = {rA[24:31], rA[16:23]};
+                        out[32:47] = {rA[40:47], rA[32:39]};
+                        out[48:63] = {rA[56:63], rA[48:55]};
+                    end
 
-            // R_ALU
-            R_ALU: begin
-                case (function_code)
-                    VAND:   out = rA & rB;
-                    VOR:    out = rA | rB;
-                    VXOR:   out = rA ^ rB;
-                    VNOT:   out = ~rA;
-                    VMOV:   out = rA;  
-                    VADD:   out = sum_diff;
-                    VSUB:   out = sum_diff;
-                    VMULEU: begin
-                        case (WW)
-                            2'b00: out = prod_b;
-                            2'b01: out = prod_h;
-                            2'b10: out = prod_w;
-                            default: out = 64'd0;
-                        endcase
+                    2'b10: begin
+                        out[0:31]  = {rA[16:31], rA[0:15]};
+                        out[32:63] = {rA[48:63], rA[32:47]};
                     end
-                    VMULOU: begin
-                        case (WW)
-                            2'b00: out = prod_b;
-                            2'b01: out = prod_h;
-                            2'b10: out = prod_w;
-                            default: out = 64'd0;
-                        endcase
-                    end
-                    VSLL: begin
-                        case (WW)
-                            2'b00: out = shift_out_b;
-                            2'b01: out = shift_out_h;
-                            2'b10: out = shift_out_w;
-                            2'b11: out = shift_out_d;
-                            default: out = 64'd0;
-                        endcase
-                    end
-                    VSRL: begin
-                        case (WW)
-                            2'b00: out = shift_out_b;
-                            2'b01: out = shift_out_h;
-                            2'b10: out = shift_out_w;
-                            2'b11: out = shift_out_d;
-                            default: out = 64'd0;
-                        endcase
-                    end
-                    VSRA: begin
-                        case (WW)
-                            2'b00: out = shift_out_b;
-                            2'b01: out = shift_out_h;
-                            2'b10: out = shift_out_w;
-                            2'b11: out = shift_out_d;
-                            default: out = 64'd0;
-                        endcase
-                    end
-                    VRTTH: begin
-                        case (WW)
-                            2'b00: begin
-                                out[0:7]   = {rA[4:7],   rA[0:3]};  
-                                out[8:15]  = {rA[12:15], rA[8:11]};
-                                out[16:23] = {rA[20:23], rA[16:19]};
-                                out[24:31] = {rA[28:31], rA[24:27]};
-                                out[32:39] = {rA[36:39], rA[32:35]};
-                                out[40:47] = {rA[44:47], rA[40:43]};
-                                out[48:55] = {rA[52:55], rA[48:51]};
-                                out[56:63] = {rA[60:63], rA[56:59]};
-                            end
-                            2'b01: begin
-                                out[0:15]  = {rA[8:15],  rA[0:7]};
-                                out[16:31] = {rA[24:31], rA[16:23]};
-                                out[32:47] = {rA[40:47], rA[32:39]};
-                                out[48:63] = {rA[56:63], rA[48:55]};
-                            end
 
-                            2'b10: begin 
-                                out[0:31]  = {rA[16:31], rA[0:15]};
-                                out[32:63] = {rA[48:63], rA[32:47]};
-                            end
-
-                            2'b11: begin 
-                                out = {rA[32:63], rA[0:31]};
-                            end
-                            default: out = 64'd0;
-                        endcase
+                    2'b11: begin
+                        out = {rA[32:63], rA[0:31]};
                     end
-                    VDIV: begin
-                        case (WW)
-                            2'b00: out = quotient_b;
-                            2'b01: out = quotient_h;
-                            2'b10: out = quotient_w;
-                            2'b11: out = quotient_d; 
-                            default: out = 64'd0;
-                        endcase
-                    end
-                    VMOD: begin
-                        case (WW)
-                            2'b00: out = remainder_b;
-                            2'b01: out = remainder_h;
-                            2'b10: out = remainder_w;
-                            2'b11: out = remainder_d; 
-                            default: out = 64'd0;
-                        endcase
-                    end
-                    VSQEU: begin
-                        case (WW)
-                            2'b00: out = prod_b;
-                            2'b01: out = prod_h;
-                            2'b10: out = prod_w;
-                            default: out = 64'd0;
-                        endcase
-                    end
-                    VSQOU: begin
-                        case (WW)
-                            2'b00: out = prod_b;
-                            2'b01: out = prod_h;
-                            2'b10: out = prod_w;
-                            default: out = 64'd0;
-                        endcase
-                    end
-                    VSQRT: begin
-                        case (WW)
-                            2'b00: out = sqrt_b;
-                            2'b01: out = sqrt_h;
-                            2'b10: out = sqrt_w;
-                            2'b11: out = sqrt_d;
-                            default: out = 64'd0;
-                        endcase
-                    end
+                    default: out = 64'd0;
+                endcase
+            end
+            VDIV: begin
+                case (WW)
+                    2'b00: out = quotient_b;
+                    2'b01: out = quotient_h;
+                    2'b10: out = quotient_w;
+                    2'b11: out = quotient_d;
+                    default: out = 64'd0;
+                endcase
+            end
+            VMOD: begin
+                case (WW)
+                    2'b00: out = remainder_b;
+                    2'b01: out = remainder_h;
+                    2'b10: out = remainder_w;
+                    2'b11: out = remainder_d;
+                    default: out = 64'd0;
+                endcase
+            end
+            VSQEU: begin
+                case (WW)
+                    2'b00: out = prod_b;
+                    2'b01: out = prod_h;
+                    2'b10: out = prod_w;
+                    default: out = 64'd0;
+                endcase
+            end
+            VSQOU: begin
+                case (WW)
+                    2'b00: out = prod_b;
+                    2'b01: out = prod_h;
+                    2'b10: out = prod_w;
+                    default: out = 64'd0;
+                endcase
+            end
+            VSQRT: begin
+                case (WW)
+                    2'b00: out = sqrt_b;
+                    2'b01: out = sqrt_h;
+                    2'b10: out = sqrt_w;
+                    2'b11: out = sqrt_d;
                     default: out = 64'd0;
                 endcase
             end
