@@ -1,0 +1,74 @@
+80200000  //   0 (PC   0): vld r1, 0
+84200010  //   1 (PC   4): vsd r1, 16
+80400001  //   2 (PC   8): vld r2, 1
+84400011  //   3 (PC  12): vsd r2, 17
+84200012  //   4 (PC  16): vsd r1, 18
+80600012  //   5 (PC  20): vld r3, 18
+84600013  //   6 (PC  24): vsd r3, 19
+80800000  //   7 (PC  28): vld r4, 0
+80A00001  //   8 (PC  32): vld r5, 1
+A8C428C6  //   9 (PC  36): vadd.ad r6, r4, r5
+84C00014  //  10 (PC  40): vsd r6, 20
+84200015  //  11 (PC  44): vsd r1, 21
+84400016  //  12 (PC  48): vsd r2, 22
+80E00015  //  13 (PC  52): vld r7, 21
+81000016  //  14 (PC  56): vld r8, 22
+84E00017  //  15 (PC  60): vsd r7, 23
+85000018  //  16 (PC  64): vsd r8, 24
+A92100C5  //  17 (PC  68): vmov.ad r9, r1, r0
+81400000  //  18 (PC  72): vld r10, 0
+85200019  //  19 (PC  76): vsd r9, 25
+81600000  //  20 (PC  80): vld r11, 0
+A98B10C6  //  21 (PC  84): vadd.ad r12, r11, r2
+8580001A  //  22 (PC  88): vsd r12, 26
+81600001  //  23 (PC  92): vld r11, 1
+A98158C6  //  24 (PC  96): vadd.ad r12, r1, r11
+8580001B  //  25 (PC 100): vsd r12, 27
+A9A110C6  //  26 (PC 104): vadd.ad r13, r1, r2
+A9CD08C3  //  27 (PC 108): vxor.ad r14, r13, r1
+A9E170C2  //  28 (PC 112): vor.ad r15, r1, r14
+85E0001C  //  29 (PC 116): vsd r15, 28
+8420001D  //  30 (PC 120): vsd r1, 29
+AA0110C6  //  31 (PC 124): vadd.ad r16, r1, r2
+8600001E  //  32 (PC 128): vsd r16, 30
+82200004  //  33 (PC 132): vld r17, 4
+AA211306  //  34 (PC 136): vadd.eb r17, r1, r2
+AA310C43  //  35 (PC 140): vxor.oh r17, r17, r1
+8620001F  //  36 (PC 144): vsd r17, 31
+AA4200C5  //  37 (PC 148): vmov.ad r18, r2, r0
+F0000000  //  38 (PC 152): vnop
+AA7208C6  //  39 (PC 156): vadd.ad r19, r18, r1
+86600020  //  40 (PC 160): vsd r19, 32
+AA8108C3  //  41 (PC 164): vxor.ad r20, r1, r1
+8A8000B0  //  42 (PC 168): vbez r20, alu_bez_target
+84200021  //  43 (PC 172): vsd r1, 33
+84400022  //  44 (PC 176): vsd r2, 34
+82A00002  //  45 (PC 180): vld r21, 2
+8EA000C0  //  46 (PC 184): vbnez r21, ld_bnez_target
+84200023  //  47 (PC 188): vsd r1, 35
+84400024  //  48 (PC 192): vsd r2, 36
+8AA000CC  //  49 (PC 196): vbez r21, untaken_bez_target
+84200025  //  50 (PC 200): vsd r1, 37
+8E8000D4  //  51 (PC 204): vbnez r20, untaken_bnez_target
+84200026  //  52 (PC 208): vsd r1, 38
+8EA000DC  //  53 (PC 212): vbnez r21, branch_target
+880000E4  //  54 (PC 216): vbez r0, wrong_branch_target
+84400027  //  55 (PC 220): vsd r2, 39
+8EA000E8  //  56 (PC 224): vbnez r21, after_wrong_branch_target
+84200028  //  57 (PC 228): vsd r1, 40
+80000001  //  58 (PC 232): vld r0, 1
+84000029  //  59 (PC 236): vsd r0, 41
+8420002A  //  60 (PC 240): vsd r1, 42
+8440002A  //  61 (PC 244): vsd r2, 42
+82C0002A  //  62 (PC 248): vld r22, 42
+86C0002B  //  63 (PC 252): vsd r22, 43
+82E00000  //  64 (PC 256): vld r23, 0
+82E00001  //  65 (PC 260): vld r23, 1
+86E0002C  //  66 (PC 264): vsd r23, 44
+AB0100C5  //  67 (PC 268): vmov.ad r24, r1, r0
+83000001  //  68 (PC 272): vld r24, 1
+8700002D  //  69 (PC 276): vsd r24, 45
+F0000000  //  70 (PC 280): vnop
+F0000000  //  71 (PC 284): vnop
+F0000000  //  72 (PC 288): vnop
+00000000  //  73 (PC 292): end
