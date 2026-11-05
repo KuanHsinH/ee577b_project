@@ -1,9 +1,10 @@
 module BPB (
     clk,
     reset,
+    is_branch,
     index_get_pred,
     index_update_pred,
-    br_result,
+    br_result, // taken = 1, not taken = 0
     pred_out
 );
 
@@ -15,6 +16,10 @@ module BPB (
     integer i;
 
     reg [0:1] predictor [0:255];
+    reg [0:1] current_predictor
+
+    assign current_predictor = predictor[index_get_pred];
+    assign pred_out = current_predictor[0] ? 1'b1 : 1'b0;
 
     always @(posedge clk) begin
         if(reset) begin
@@ -23,7 +28,14 @@ module BPB (
             end
         end
         else begin
-            
+            if(is_branch) begin
+                if(br_result == 1'b1) begin
+                    predictor[index_update_pred] <= (predictor[index_update_pred] == 2'b11) ? predictor[index_update_pred] : predictor[index_update_pred] + 1'b1;
+                end
+                else begin
+                    predictor[index_update_pred] <= (predictor[index_update_pred] == 2'b00) ? predictor[index_update_pred] : predictor[index_update_pred] - 1'b1;
+                end
+            end
         end
     end
     
