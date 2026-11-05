@@ -92,20 +92,29 @@ module cardinal_cpu_bp_v1 #(
 
     // IF stage
     reg [0:INST_WIDTH-1] pc;  
-    reg [0:INST_WIDTH-1] IF_ID_pc;
+
+    // save the pc of the branch for recovering in case of misprediction
+    reg [0:INST_WIDTH-1] IF_ID_pc; 
+
     reg IF_ID_pred_taken;
     wire mispredict_ID, br_pred_out;
     wire is_branch_IF = (inst_in[0:5] == R_BEZ) || (inst_in[0:5] == R_BNEZ);
     wire pred_taken_IF = is_branch_IF && br_pred_out;
+
+    // if predict TAKEN, directly take the imm_addr to be the next pc
+    // if the instruction is not a branch, is_branch is 0, prediction will not be made
     wire [0:INST_WIDTH-1] pred_next_pc_IF = pred_taken_IF ?
         {16'b0, inst_in[16:31]} : pc + 32'd4;
+
+    // when prediction TAKEN is wrong, it recovers with IF_ID_pc + 4 
+    // when prediction NOT TAKEN is wrong, it recovers with br_addr ({16'b0, imm_addr_ID})
     wire [0:INST_WIDTH-1] recovery_pc_ID = br_taken ? br_addr : IF_ID_pc + 32'd4;
 
     assign pc_out = pc;
 
     always @(posedge clk) begin
         if(reset) pc <= 0;
-        else if(mispredict_ID) pc <= recovery_pc_ID;    // after misprediction, recover to br_addr(if predict NOT TAKEN) or pc+4(if predict TAKEN)
+        else if(mispredict_ID) pc <= recovery_pc_ID; // after misprediction, recover to br_addr(if predict NOT TAKEN) or pc+4(if predict TAKEN)
         else if(stall) pc <= pc;
         else pc <= pred_next_pc_IF;
     end
@@ -119,6 +128,7 @@ module cardinal_cpu_bp_v1 #(
         else IF_ID_reg <= inst_in;
     end
 
+    // move the pc to ID stage for recovering and updating BPB
     always @(posedge clk) begin
         if (reset)              IF_ID_pc <= 0;
         else if (mispredict_ID) IF_ID_pc <= 0;
@@ -126,6 +136,7 @@ module cardinal_cpu_bp_v1 #(
         else                    IF_ID_pc <= pc;
     end
 
+    // move prediction result to ID stage for updating BPB
     always @(posedge clk) begin
         if (reset)              IF_ID_pred_taken <= 1'b0;
         else if (mispredict_ID) IF_ID_pred_taken <= 1'b0;
@@ -237,7 +248,7 @@ module cardinal_cpu_bp_v1 #(
     end
 
     assign mispredict_ID = is_branch_ID && !stall &&
-                           (br_taken != IF_ID_pred_taken);
+                           (br_taken != IF_ID_pred_taken); // used to update the BPB
 
     // ID/EX reg
     reg [0:176] ID_EX_reg;

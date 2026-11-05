@@ -24,7 +24,7 @@ module BPB (
     always @(posedge clk) begin
         if(reset) begin
             for (i = 0; i<256; i = i+1) begin
-                predictor[i] <= 2'b00;
+                predictor[i] <= 2'b01;
             end
         end
         else begin
