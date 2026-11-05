@@ -1,0 +1,14 @@
+80200000  //   0 (PC   0): vld r1, 0
+80400001  //   1 (PC   4): vld r2, 1
+A86310C3  //   2 (PC   8): vxor.ad r3, r3, r2
+88600014  //   3 (PC  12): vbez r3, skip_add
+A88410C6  //   4 (PC  16): vadd.ad r4, r4, r2
+A82110C7  //   5 (PC  20): vsub.ad r1, r1, r2
+8C200008  //   6 (PC  24): vbnez r1, loop
+84800010  //   7 (PC  28): vsd r4, 16
+84200011  //   8 (PC  32): vsd r1, 17
+84600012  //   9 (PC  36): vsd r3, 18
+F0000000  //  10 (PC  40): vnop
+F0000000  //  11 (PC  44): vnop
+F0000000  //  12 (PC  48): vnop
+00000000  //  13 (PC  52): end

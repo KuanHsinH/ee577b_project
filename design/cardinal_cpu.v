@@ -141,7 +141,8 @@ module cardinal_cpu #(
         .PPP(PPP_ID),
         .function_code(function_code_ID),
         .imm_Addr(imm_addr_ID),
-        .op_type(op_type_ID)
+        .op_type(op_type_ID),
+        .is_branch()
     );
 
     // come from WB

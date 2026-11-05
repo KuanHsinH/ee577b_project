@@ -123,13 +123,13 @@ def byte_mask(ppp: int) -> int:
     return sum(0xFF << (8 * (7 - i)) for i in selected)
 
 
-def execute(memory: list[int]) -> tuple[list[int], set[int]]:
+def execute(memory: list[int], max_steps: int = 1000) -> tuple[list[int], set[int]]:
     regs = [0] * 32
     touched: set[int] = set()
     pc = 0
     steps = 0
     while True:
-        assert 0 <= pc < len(PROGRAM) and steps < 1000, "program did not terminate"
+        assert 0 <= pc < len(PROGRAM) and steps < max_steps, "program did not terminate"
         word = PROGRAM[pc][0]
         if word == 0:
             break

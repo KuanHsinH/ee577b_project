@@ -1,0 +1,16 @@
+80200000  //   0 (PC   0): vld r1, 0
+80400001  //   1 (PC   4): vld r2, 1
+80600002  //   2 (PC   8): vld r3, 2
+A8A200C5  //   3 (PC  12): vmov.ad r5, r2, r0
+A88418C6  //   4 (PC  16): vadd.ad r4, r4, r3
+A8A518C7  //   5 (PC  20): vsub.ad r5, r5, r3
+8CA00010  //   6 (PC  24): vbnez r5, inner
+A82118C7  //   7 (PC  28): vsub.ad r1, r1, r3
+8C20000C  //   8 (PC  32): vbnez r1, outer
+84800010  //   9 (PC  36): vsd r4, 16
+84200011  //  10 (PC  40): vsd r1, 17
+84A00012  //  11 (PC  44): vsd r5, 18
+F0000000  //  12 (PC  48): vnop
+F0000000  //  13 (PC  52): vnop
+F0000000  //  14 (PC  56): vnop
+00000000  //  15 (PC  60): end

@@ -1,0 +1,19 @@
+80200000  //   0 (PC   0): vld r1, 0
+80400001  //   1 (PC   4): vld r2, 1
+80600002  //   2 (PC   8): vld r3, 2
+88000014  //   3 (PC  12): vbez r0, body
+84600010  //   4 (PC  16): vsd r3, 16
+A82110C7  //   5 (PC  20): vsub.ad r1, r1, r2
+8C20000C  //   6 (PC  24): vbnez r1, loop
+84200011  //   7 (PC  28): vsd r1, 17
+88400028  //   8 (PC  32): vbez r2, wrong_bez_target
+84600012  //   9 (PC  36): vsd r3, 18
+8C000030  //  10 (PC  40): vbnez r0, wrong_bnez_target
+84600013  //  11 (PC  44): vsd r3, 19
+88000038  //  12 (PC  48): vbez r0, last_target
+84600014  //  13 (PC  52): vsd r3, 20
+84600015  //  14 (PC  56): vsd r3, 21
+F0000000  //  15 (PC  60): vnop
+F0000000  //  16 (PC  64): vnop
+F0000000  //  17 (PC  68): vnop
+00000000  //  18 (PC  72): end

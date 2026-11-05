@@ -20,7 +20,7 @@
 
 // First Ver. of branch prediction : keeping BRANCH resolve in ID stage
 
-module cardinal_cpu #(
+module cardinal_cpu_bp_v1 #(
     parameter INST_WIDTH = 32,
     parameter DATA_WIDTH = 64,
     parameter REG_ADDR_WIDTH = 5,
@@ -92,26 +92,45 @@ module cardinal_cpu #(
 
     // IF stage
     reg [0:INST_WIDTH-1] pc;  
+    reg [0:INST_WIDTH-1] IF_ID_pc;
+    reg IF_ID_pred_taken;
+    wire mispredict_ID, br_pred_out;
+    wire is_branch_IF = (inst_in[0:5] == R_BEZ) || (inst_in[0:5] == R_BNEZ);
+    wire pred_taken_IF = is_branch_IF && br_pred_out;
+    wire [0:INST_WIDTH-1] pred_next_pc_IF = pred_taken_IF ?
+        {16'b0, inst_in[16:31]} : pc + 32'd4;
+    wire [0:INST_WIDTH-1] recovery_pc_ID = br_taken ? br_addr : IF_ID_pc + 32'd4;
 
     assign pc_out = pc;
 
     always @(posedge clk) begin
         if(reset) pc <= 0;
-        else begin
-            if(stall) pc <= pc;
-            else begin
-                pc <= br_taken ? br_addr : pc + 4;
-            end
-        end
+        else if(mispredict_ID) pc <= recovery_pc_ID;    // after misprediction, recover to br_addr(if predict NOT TAKEN) or pc+4(if predict TAKEN)
+        else if(stall) pc <= pc;
+        else pc <= pred_next_pc_IF;
     end
 
     // IF/ID reg
     reg [0:INST_WIDTH-1] IF_ID_reg; // only the instruction
     always @(posedge clk) begin
         if(reset) IF_ID_reg <= 'd0;
-        else if(stall) IF_ID_reg <= IF_ID_reg;
-        else if(br_taken) IF_ID_reg <= {VNOP, 26'b0}; // flushes the sequential addr pointed by current pc
+        else if(mispredict_ID) IF_ID_reg <= {VNOP, 26'b0};  // Flush if mispredicted
+        else if(stall) IF_ID_reg <= IF_ID_reg;  
         else IF_ID_reg <= inst_in;
+    end
+
+    always @(posedge clk) begin
+        if (reset)              IF_ID_pc <= 0;
+        else if (mispredict_ID) IF_ID_pc <= 0;
+        else if (stall)         IF_ID_pc <= IF_ID_pc;
+        else                    IF_ID_pc <= pc;
+    end
+
+    always @(posedge clk) begin
+        if (reset)              IF_ID_pred_taken <= 1'b0;
+        else if (mispredict_ID) IF_ID_pred_taken <= 1'b0;
+        else if (stall)         IF_ID_pred_taken <= IF_ID_pred_taken;
+        else                    IF_ID_pred_taken <= pred_taken_IF;
     end
 
     //--------------------------------------------------------------------------
@@ -127,6 +146,8 @@ module cardinal_cpu #(
     wire [0:2]  PPP_ID;
     wire [0:5]  function_code_ID;
     wire [0:5]  op_type_ID;
+    wire        is_branch_ID;
+    wire [0:7]  index_update_pred_ID = IF_ID_pc[22:29];
     
     decoder dc1(
         .inst_in(IF_ID_reg),
@@ -144,7 +165,18 @@ module cardinal_cpu #(
         .PPP(PPP_ID),
         .function_code(function_code_ID),
         .imm_Addr(imm_addr_ID),
-        .op_type(op_type_ID)
+        .op_type(op_type_ID),
+        .is_branch(is_branch_ID)
+    );
+
+    BPB br_pred1(
+        .clk(clk),
+        .reset(reset),
+        .is_branch(is_branch_ID && !stall),
+        .index_get_pred(pc[22:29]), // use 8 bits as index to get branch prediction
+        .index_update_pred(index_update_pred_ID),
+        .br_result(br_taken),
+        .pred_out(br_pred_out)
     );
 
     // come from WB
@@ -203,6 +235,9 @@ module cardinal_cpu #(
         end
         else br_taken = 1'b0;
     end
+
+    assign mispredict_ID = is_branch_ID && !stall &&
+                           (br_taken != IF_ID_pred_taken);
 
     // ID/EX reg
     reg [0:176] ID_EX_reg;

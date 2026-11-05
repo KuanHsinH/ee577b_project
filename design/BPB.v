@@ -10,16 +10,16 @@ module BPB (
 
     input clk, reset;
     input [0:7] index_get_pred, index_update_pred;
-    input br_result;
+    input is_branch, br_result;
     output pred_out;
 
     integer i;
 
     reg [0:1] predictor [0:255];
-    reg [0:1] current_predictor
+    wire [0:1] current_predictor;
 
     assign current_predictor = predictor[index_get_pred];
-    assign pred_out = current_predictor[0] ? 1'b1 : 1'b0;
+    assign pred_out = current_predictor[0] ? 1'b1 : 1'b0; // 00, 01: Not Taken, 10, 11: Taken
 
     always @(posedge clk) begin
         if(reset) begin

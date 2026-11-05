@@ -11,7 +11,8 @@ module decoder(
     mem_en,
     mem_we,
     imm_Addr,
-    op_type
+    op_type,
+    is_branch
 );
 
     input      [0:31] inst_in;
@@ -29,6 +30,8 @@ module decoder(
 
     output reg [0:15] imm_Addr;
     output     [0:5]  op_type;
+
+    output reg        is_branch;
 
     // 6 bit function code
     localparam VAND   = 6'b000001,
@@ -84,7 +87,9 @@ module decoder(
         mem_en           = 1'b0;
         mem_we           = 1'b0;
     
-        imm_Addr          = 16'd0;
+        imm_Addr         = 16'd0;
+
+        is_branch        = 1'b0;
 
         case (inst_in[0:5])
             R_ALU: begin
@@ -130,12 +135,14 @@ module decoder(
                 rf_we    = 1'b0;
                 rD_addr  = inst_in[6:10];
                 imm_Addr = inst_in[16:31];
+                is_branch = 1'b1;
             end
 
             R_BNEZ: begin
                 rf_we    = 1'b0;
                 rD_addr  = inst_in[6:10];
                 imm_Addr = inst_in[16:31];
+                is_branch = 1'b1;
             end
 
             default: begin
@@ -152,6 +159,8 @@ module decoder(
                 mem_we        = 1'b0;
             
                 imm_Addr      = 16'd0;
+
+                is_branch = 1'b0;
             end
         endcase
     end
