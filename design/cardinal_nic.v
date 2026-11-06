@@ -53,34 +53,36 @@ module cardinal_nic #(
         end
     end
 
-    // A read ofinput buffer address 00 consumes the packet at that edge.
-    always @* begin
-        d_out = {PACKET_SIZE{1'b0}};
-
-        if (nicEn && !nicEnWr) begin
-            case (addr)
-                2'b00: begin
-                    if (in_full)
-                        d_out = in_buf;
-                end
-                2'b01: d_out[0] = in_full;
-                2'b10: d_out = {PACKET_SIZE{1'b0}};
-                2'b11: d_out[0] = out_full;
-                default: d_out = {PACKET_SIZE{1'b0}};
-            endcase
-        end
-    end
-
     // Synchronous, active-high reset. Writes to occupied output buffers and
     // writes to read-only registers are ignored. Independent directions may
-    // receive and transmit in the same clock cycle.
+    // receive and transmit in the same clock cycle. A processor read captures
+    // its selected value into d_out at the rising edge. In particular, an
+    // input-buffer read captures in_buf on the same edge that frees the buffer.
     always @(posedge clk) begin
         if (reset) begin
             in_buf  <= {PACKET_SIZE{1'b0}};
             out_buf <= {PACKET_SIZE{1'b0}};
             in_full <= 1'b0;
             out_full <= 1'b0;
+            d_out   <= {PACKET_SIZE{1'b0}};
         end else begin
+            // The processor samples the selected register on this clock edge.
+            // With no read enabled, d_out holds its last captured value.
+            if (nicEn && !nicEnWr) begin
+                case (addr)
+                    2'b00: begin
+                        if (in_full)
+                            d_out <= in_buf;
+                        else
+                            d_out <= {PACKET_SIZE{1'b0}};
+                    end
+                    2'b01: d_out <= {{(PACKET_SIZE-1){1'b0}}, in_full};
+                    2'b10: d_out <= {PACKET_SIZE{1'b0}};
+                    2'b11: d_out <= {{(PACKET_SIZE-1){1'b0}}, out_full};
+                    default: d_out <= {PACKET_SIZE{1'b0}};
+                endcase
+            end
+
             // Router -> PE. net_ri is low whenever the input buffer is full.
             if (net_si && net_ri) begin
                 in_buf  <= net_di;
