@@ -79,8 +79,8 @@ module tb_cardinal_nic;
     always @(posedge clk) begin
         if (!reset && (net_so === 1'b1)) begin
             send_events = send_events + 1;
-            $display("%0t ns: accepted send #%0d, packet=%h polarity=%b",
-                     $time, send_events, net_do, net_polarity);
+            $display("%0.2f ns: accepted send #%0d, packet=%h polarity=%b",
+                     $realtime, send_events, net_do, net_polarity);
 
             if (net_ro !== 1'b1) begin
                 $display("ERROR: net_so was high while net_ro was not high");
@@ -104,12 +104,12 @@ module tb_cardinal_nic;
         input            expected;
         begin
             if (actual !== expected) begin
-                $display("ERROR at %0t ns: %0s got %b, expected %b",
-                         $time, test_name, actual, expected);
+                $display("ERROR at %0.2f ns: %0s got %b, expected %b",
+                         $realtime, test_name, actual, expected);
                 errors = errors + 1;
             end else begin
-                $display("PASS at %0t ns: %0s = %b",
-                         $time, test_name, actual);
+                $display("PASS at %0.2f ns: %0s = %b",
+                         $realtime, test_name, actual);
             end
         end
     endtask
@@ -120,12 +120,12 @@ module tb_cardinal_nic;
         input [0:63]     expected;
         begin
             if (actual !== expected) begin
-                $display("ERROR at %0t ns: %0s got %h, expected %h",
-                         $time, test_name, actual, expected);
+                $display("ERROR at %0.2f ns: %0s got %h, expected %h",
+                         $realtime, test_name, actual, expected);
                 errors = errors + 1;
             end else begin
-                $display("PASS at %0t ns: %0s = %h",
-                         $time, test_name, actual);
+                $display("PASS at %0.2f ns: %0s = %h",
+                         $realtime, test_name, actual);
             end
         end
     endtask
@@ -136,12 +136,12 @@ module tb_cardinal_nic;
         input integer    expected;
         begin
             if (actual != expected) begin
-                $display("ERROR at %0t ns: %0s got %0d, expected %0d",
-                         $time, test_name, actual, expected);
+                $display("ERROR at %0.2f ns: %0s got %0d, expected %0d",
+                         $realtime, test_name, actual, expected);
                 errors = errors + 1;
             end else begin
-                $display("PASS at %0t ns: %0s = %0d",
-                         $time, test_name, actual);
+                $display("PASS at %0.2f ns: %0s = %0d",
+                         $realtime, test_name, actual);
             end
         end
     endtask
@@ -278,6 +278,7 @@ module tb_cardinal_nic;
             // next edge so this check remains a single wrong-phase attempt.
             @(negedge clk);
             net_ro = 1'b0;
+            #1; // Let combinational net_so settle after changing net_ro.
             check_bit("net_so after blocking is restored", net_so, 1'b0);
 
             cpu_load(2'b11, status_value);
@@ -294,8 +295,8 @@ module tb_cardinal_nic;
             end
 
             if (net_so !== 1'b1) begin
-                $display("ERROR at %0t ns: timeout waiting for eligible net_so",
-                         $time);
+                $display("ERROR at %0.2f ns: timeout waiting for eligible net_so",
+                         $realtime);
                 errors = errors + 1;
                 net_ro = 1'b0;
                 // Clear the stuck packet so later test cases can still run.
@@ -460,8 +461,8 @@ module tb_cardinal_nic;
             check_bit("input buffer empty after concurrent packet read",
                       net_ri, 1'b1);
         end else begin
-            $display("ERROR at %0t ns: expected concurrent input packet was not captured",
-                     $time);
+            $display("ERROR at %0.2f ns: expected concurrent input packet was not captured",
+                     $realtime);
             errors = errors + 1;
         end
 
