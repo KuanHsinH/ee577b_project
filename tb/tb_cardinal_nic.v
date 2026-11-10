@@ -1,51 +1,61 @@
-`timescale 1ns/1ps
+`timescale 1ns/10ps
 
-// Cover all 4 processor addresses and legal/illegal read/write modes
-// empty/full buffer behavior; input and output backpressure; both VC phases;
-// every (dest_x,dest_y) pair in a 4x4 mesh for VC0 and VC1; simultaneous
-// receive/transmit; full-buffer overwrite protection; and reset priority.
+/////////////////////////////////////////////////////////////////////////////
+// Cardinal NIC verification testbench (Phase 3)
 //
-// Packet layout matches the provided 64-bit packet constructor:
-// {vc, reserved, dest_x[1:0], dest_y[1:0], reserved[1:0], hop[7:0],
-//  source[15:0], payload[31:0]}.
-//------------------------------------------------------------------------------
+// Exercises the NIC through its public processor and router interfaces:
+//   - synchronous reset, including activity presented during reset
+//   - processor register map addresses 00, 01, 10 and 11
+//   - input-buffer ready/backpressure, read release and ignored writes
+//   - output-buffer blocking, phase qualification, ignored writes and release
+//   - VC0 and VC1 packet transfers
+//   - simultaneous router receive and router send
+//
+// Inputs are driven on falling edges. State and transfers are checked after
+// rising edges, matching the 4 ns / 250 MHz course timing.
+// Packet buses use [0:63], so bit 0 is the VC bit.
+/////////////////////////////////////////////////////////////////////////////
 module tb_cardinal_nic;
-    parameter integer PACKET_SIZE = 64;
 
-    reg clk;
-    reg reset;
-    reg [1:0] addr;
-    reg [PACKET_SIZE-1:0] d_in;
-    wire [PACKET_SIZE-1:0] d_out;
-    reg nicEn;
-    reg nicEnWr;
+    localparam integer CYCLE_TIME = 4;
 
-    reg net_si;
-    wire net_ri;
-    reg [PACKET_SIZE-1:0] net_di;
-    wire net_so;
-    reg net_ro;
-    wire [PACKET_SIZE-1:0] net_do;
-    reg net_polarity;
+    reg         clk;
+    reg         reset;
+    reg  [0:1]  addr;
+    reg  [0:63] d_in;
+    wire [0:63] d_out;
+    reg         nicEn;
+    reg         nicWrEn;
+
+    reg         net_si;
+    wire        net_ri;
+    reg  [0:63] net_di;
+
+    wire        net_so;
+    reg         net_ro;
+    wire [0:63] net_do;
+    reg         net_polarity;
+
+    reg  [0:63] expected_packet;
+    reg  [0:63] input_packet_a;
+    reg  [0:63] input_packet_b;
+    reg  [0:63] input_packet_concurrent;
+    reg  [0:63] packet_vc0;
+    reg  [0:63] packet_vc1;
+    reg  [0:63] replacement_packet;
+    reg  [0:63] read_value;
 
     integer errors;
-    integer a;
-    integer vc_i;
-    integer dx_i;
-    integer dy_i;
-    reg [PACKET_SIZE-1:0] packet;
-    reg [PACKET_SIZE-1:0] packet_a;
-    reg [PACKET_SIZE-1:0] packet_b;
-    reg [PACKET_SIZE-1:0] expected_status;
+    integer send_events;
 
-    cardinal_nic #(.PACKET_SIZE(PACKET_SIZE)) dut (
+    cardinal_nic NIC (
         .clk(clk),
         .reset(reset),
         .addr(addr),
         .d_in(d_in),
         .d_out(d_out),
         .nicEn(nicEn),
-        .nicEnWr(nicEnWr),
+        .nicWrEn(nicWrEn),
         .net_si(net_si),
         .net_ri(net_ri),
         .net_di(net_di),
@@ -55,448 +65,415 @@ module tb_cardinal_nic;
         .net_polarity(net_polarity)
     );
 
-    // 250 MHz test clock (4 ns period), as required by the project setup.
-    initial clk = 1'b0;
-    always #2 clk = ~clk;
+    always #(CYCLE_TIME / 2) clk = ~clk;
 
-    function [PACKET_SIZE-1:0] make_packet;
-        input vc;
-        input [1:0] dest_x;
-        input [1:0] dest_y;
-        input [7:0] hop_field;
-        input [15:0] source;
-        input [31:0] payload;
-        begin
-            make_packet = {vc, 1'b0, dest_x, dest_y, 2'b00,
-                           hop_field, source, payload};
+    // Model the mesh polarity: zero during reset, then toggle each rising edge.
+    always @(posedge clk) begin
+        if (reset)
+            net_polarity <= 1'b0;
+        else
+            net_polarity <= ~net_polarity;
+    end
+
+    // Observe transfers the way the router does: at the rising edge.
+    always @(posedge clk) begin
+        if (!reset && (net_so === 1'b1)) begin
+            send_events = send_events + 1;
+            $display("%0t ns: accepted send #%0d, packet=%h polarity=%b",
+                     $time, send_events, net_do, net_polarity);
+
+            if (net_ro !== 1'b1) begin
+                $display("ERROR: net_so was high while net_ro was not high");
+                errors = errors + 1;
+            end
+            if (net_polarity !== ~net_do[0]) begin
+                $display("ERROR: packet was offered in the wrong VC phase");
+                errors = errors + 1;
+            end
+            if (net_do !== expected_packet) begin
+                $display("ERROR: sent packet %h, expected %h",
+                         net_do, expected_packet);
+                errors = errors + 1;
+            end
         end
-    endfunction
+    end
 
     task check_bit;
-        input actual;
-        input expected;
-        input [8*120-1:0] label_text;
+        input [8*64-1:0] test_name;
+        input            actual;
+        input            expected;
         begin
             if (actual !== expected) begin
-                $display("FAIL @%0t: %0s; expected=%b actual=%b",
-                         $time, label_text, expected, actual);
+                $display("ERROR at %0t ns: %0s got %b, expected %b",
+                         $time, test_name, actual, expected);
                 errors = errors + 1;
+            end else begin
+                $display("PASS at %0t ns: %0s = %b",
+                         $time, test_name, actual);
             end
         end
     endtask
 
-    task check_packet;
-        input [PACKET_SIZE-1:0] actual;
-        input [PACKET_SIZE-1:0] expected;
-        input [8*120-1:0] label_text;
+    task check_word;
+        input [8*64-1:0] test_name;
+        input [0:63]     actual;
+        input [0:63]     expected;
         begin
             if (actual !== expected) begin
-                $display("FAIL @%0t: %0s", $time, label_text);
-                $display("      expected=%h", expected);
-                $display("      actual  =%h", actual);
+                $display("ERROR at %0t ns: %0s got %h, expected %h",
+                         $time, test_name, actual, expected);
                 errors = errors + 1;
+            end else begin
+                $display("PASS at %0t ns: %0s = %h",
+                         $time, test_name, actual);
             end
         end
     endtask
 
-    task check_status;
-        input [1:0] status_addr;
-        input expected;
-        input [8*120-1:0] label_text;
+    task check_count;
+        input [8*64-1:0] test_name;
+        input integer    actual;
+        input integer    expected;
         begin
-            nicEn = 1'b1;
-            nicEnWr = 1'b0;
-            addr = status_addr;
-            @(posedge clk);
-            #1;
-            expected_status = {{(PACKET_SIZE-1){1'b0}}, expected};
-            check_packet(d_out, expected_status, label_text);
+            if (actual != expected) begin
+                $display("ERROR at %0t ns: %0s got %0d, expected %0d",
+                         $time, test_name, actual, expected);
+                errors = errors + 1;
+            end else begin
+                $display("PASS at %0t ns: %0s = %0d",
+                         $time, test_name, actual);
+            end
         end
     endtask
 
-    task store_output;
-        input [PACKET_SIZE-1:0] p;
+    // Drive a processor read before an edge and sample registered d_out after it.
+    task cpu_load;
+        input  [0:1]  selected_addr;
+        output [0:63] value;
         begin
             @(negedge clk);
-            nicEn = 1'b1;
-            nicEnWr = 1'b1;
-            addr = 2'b10;
-            d_in = p;
+            addr   = selected_addr;
+            nicEn  = 1'b1;
+            nicWrEn = 1'b0;
+
             @(posedge clk);
             #1;
+            value = d_out;
+
+            @(negedge clk);
+            nicEn   = 1'b0;
+            nicWrEn = 1'b0;
+        end
+    endtask
+
+    // Drive a processor store for one rising edge.
+    task cpu_store;
+        input [0:1]  selected_addr;
+        input [0:63] value;
+        begin
+            @(negedge clk);
+            addr    = selected_addr;
+            d_in    = value;
+            nicEn   = 1'b1;
+            nicWrEn = 1'b1;
+
+            @(posedge clk);
+            #1;
+
+            @(negedge clk);
+            nicEn   = 1'b0;
+            nicWrEn = 1'b0;
+        end
+    endtask
+
+    // Send one packet from the modeled router to the NIC.
+    task router_inject;
+        input [0:63] packet;
+        begin
+            @(negedge clk);
+            net_di = packet;
+            net_si = 1'b1;
+            check_bit("net_ri before router injection", net_ri, 1'b1);
+
+            @(posedge clk);
+            #1;
+            check_bit("net_ri after router injection", net_ri, 1'b0);
+
+            @(negedge clk);
+            net_si = 1'b0;
+        end
+    endtask
+
+    // Exercise one queued output packet. The second attempted store should
+    // be ignored. Optionally inject a router packet on the same edge that
+    // the output packet is accepted.
+    task exercise_output_packet;
+        input [0:63] queued_packet;
+        input [0:63] second_store;
+        input        inject_on_send;
+        input [0:63] concurrent_input_packet;
+
+        reg [0:63] status_value;
+        integer    sends_before;
+        integer    wait_edges;
+        begin
+            expected_packet = queued_packet;
+
+            // Prevent a send while the processor first fills the output buffer.
+            net_ro = 1'b0;
+            cpu_store(2'b10, queued_packet);
+            check_word("net_do while output packet is queued",
+                       net_do, queued_packet);
+
+            cpu_load(2'b11, status_value);
+            check_word("output status after address-10 store",
+                       status_value, 64'h0000_0000_0000_0001);
+
+            // Read from the write-only address: it must not consume the packet.
+            cpu_load(2'b10, status_value);
+            check_word("read from write-only address 10",
+                       status_value, 64'd0);
+            check_word("packet remains after address-10 read",
+                       net_do, queued_packet);
+
+            // A second store while full, and a write to read-only address 11,
+            // must both leave the queued packet and its full state unchanged.
+            cpu_store(2'b10, second_store);
+            check_word("full output buffer rejects second store",
+                       net_do, queued_packet);
+            cpu_store(2'b11, second_store);
+            cpu_load(2'b11, status_value);
+            check_word("output status after ignored write to address 11",
+                       status_value, 64'h0000_0000_0000_0001);
+            check_word("packet survives ignored address-11 write",
+                       net_do, queued_packet);
+
+            // Ready low blocks the transfer. Data remains stable and SO stays low.
+            repeat (3) begin
+                @(posedge clk);
+                #1;
+                check_bit("net_so while router is not ready", net_so, 1'b0);
+                check_word("net_do remains stable while blocked",
+                           net_do, queued_packet);
+            end
+
+            // Make the router ready for one edge in the wrong phase.
+            // The edge must not consume the packet.
+            @(negedge clk);
+            while (net_polarity !== queued_packet[0])
+                @(negedge clk);
+            net_ro = 1'b1;
+            #1;
+            check_bit("net_so in the wrong VC phase", net_so, 1'b0);
+            sends_before = send_events;
+
+            @(posedge clk);
+            #1;
+            check_word("packet remains after wrong-phase edge",
+                       net_do, queued_packet);
+            check_count("no send at wrong-phase edge",
+                        send_events, sends_before);
+
+            // The polarity toggles after that edge. Drop ready before the
+            // next edge so this check remains a single wrong-phase attempt.
+            @(negedge clk);
+            net_ro = 1'b0;
+            check_bit("net_so after blocking is restored", net_so, 1'b0);
+
+            cpu_load(2'b11, status_value);
+            check_word("output status remains full while blocked",
+                       status_value, 64'h0000_0000_0000_0001);
+
+            // Wait for the required phase, then let the router accept the packet.
+            @(negedge clk);
+            net_ro = 1'b1;
+            wait_edges = 0;
+            while ((net_so !== 1'b1) && (wait_edges < 6)) begin
+                @(negedge clk);
+                wait_edges = wait_edges + 1;
+            end
+
+            if (net_so !== 1'b1) begin
+                $display("ERROR at %0t ns: timeout waiting for eligible net_so",
+                         $time);
+                errors = errors + 1;
+                net_ro = 1'b0;
+                // Clear the stuck packet so later test cases can still run.
+                reset = 1'b1;
+                @(posedge clk);
+                #1;
+                @(negedge clk);
+                reset = 1'b0;
+            end else begin
+                check_word("net_do on eligible send edge",
+                           net_do, queued_packet);
+
+                if (inject_on_send) begin
+                    net_di = concurrent_input_packet;
+                    net_si = 1'b1;
+                    check_bit("net_ri before simultaneous receive/send",
+                              net_ri, 1'b1);
+                end
+
+                @(posedge clk);
+                #1;
+                check_count("send count after accepted packet",
+                            send_events, sends_before + 1);
+                check_bit("net_so after accepted packet",
+                          net_so, 1'b0);
+                check_word("net_do after output buffer empties",
+                           net_do, 64'd0);
+
+                if (inject_on_send)
+                    check_bit("net_ri after simultaneous receive/send",
+                              net_ri, 1'b0);
+
+                @(negedge clk);
+                net_ro = 1'b0;
+                net_si = 1'b0;
+
+                cpu_load(2'b11, status_value);
+                check_word("output status after accepted send",
+                           status_value, 64'd0);
+            end
         end
     endtask
 
     initial begin
-        errors = 0;
-        reset = 1'b1;
-        addr = 2'b00;
-        d_in = {PACKET_SIZE{1'b0}};
-        nicEn = 1'b0;
-        nicEnWr = 1'b0;
-        net_si = 1'b0;
-        net_di = {PACKET_SIZE{1'b0}};
-        net_ro = 1'b0;
+        clk         = 1'b0;
+        reset       = 1'b1;
+        addr        = 2'b10;
+        d_in        = 64'h1234_5678_9ABC_DEF0;
+        nicEn       = 1'b1;
+        nicWrEn     = 1'b1;
+        net_si      = 1'b1;
+        net_di      = 64'hA135_2468_ACE0_1357;
+        net_ro      = 1'b1;
         net_polarity = 1'b0;
+        expected_packet = 64'd0;
+        errors      = 0;
+        send_events = 0;
 
-        packet_a = make_packet(1'b1, 2'd2, 2'd3, 8'hA5, 16'h1234, 32'hCAFE0001);
-        packet_b = make_packet(1'b0, 2'd0, 2'd1, 8'h3C, 16'h5678, 32'hBEEF0002);
+        input_packet_a          = 64'h0123_4567_89AB_CDEF;
+        input_packet_b          = 64'hFEDC_BA98_7654_3210;
+        input_packet_concurrent = 64'h55AA_00FF_1234_ABCD;
+        packet_vc0              = 64'h1234_5678_9ABC_DEF0;
+        packet_vc1              = 64'h9234_5678_9ABC_DEF1;
+        replacement_packet      = 64'h8123_4567_89AB_DEAD;
 
-        // ------------------------------------------------------------------
-        // 1. Reset initializes both empty buffers and handshakes.
-        // ------------------------------------------------------------------
-        repeat (2) @(posedge clk);
-        #1;
-        check_bit(net_ri, 1'b1, "reset leaves input channel ready");
-        check_bit(net_so, 1'b0, "reset leaves output send low");
-        check_packet(net_do, {PACKET_SIZE{1'b0}}, "reset output data is zero");
-        check_status(2'b01, 1'b0, "input status is empty after reset");
-        check_status(2'b11, 1'b0, "output status is empty after reset");
-
-        @(negedge clk);
-        reset = 1'b0;
-        nicEn = 1'b0;
-        nicEnWr = 1'b0;
-        #1;
-
-        // ------------------------------------------------------------------
-        // 2. Disabled reads and write-mode reads return zero for all addresses.
-        // ------------------------------------------------------------------
-        for (a = 0; a < 4; a = a + 1) begin
-            @(negedge clk);
-            addr = a[1:0];
-            nicEn = 1'b0;
-            nicEnWr = 1'b0;
+        // 1. Reset must dominate simultaneous network receive and CPU store.
+        repeat (3) begin
+            @(posedge clk);
             #1;
-            check_packet(d_out, {PACKET_SIZE{1'b0}}, "disabled read leaves the reset read value unchanged");
-
-            nicEn = 1'b0;
-            nicEnWr = 1'b1;
-            #1;
-            check_packet(d_out, {PACKET_SIZE{1'b0}}, "disabled write leaves the reset read value unchanged");
-
-            nicEn = 1'b1;
-            nicEnWr = 1'b1;
-            #1;
-            check_packet(d_out, {PACKET_SIZE{1'b0}}, "processor write does not change the read-data register");
-            // This section checks read-port mux behavior only; do not leave
-            // a legal addr=10 store enabled across the next active edge.
-            nicEn = 1'b0;
-            nicEnWr = 1'b0;
+            check_bit("net_ri during reset", net_ri, 1'b1);
+            check_bit("net_so during reset", net_so, 1'b0);
+            check_word("net_do during reset", net_do, 64'd0);
+            check_word("d_out during reset", d_out, 64'd0);
         end
 
-        // Empty input-buffer reads return zero in this implementation (allowed
-        // by the spec, which defines empty-buffer reads as unspecified).
         @(negedge clk);
-        nicEn = 1'b1;
-        nicEnWr = 1'b0;
-        addr = 2'b00;
+        reset   = 1'b0;
+        net_si  = 1'b0;
+        net_ro  = 1'b0;
+        nicEn   = 1'b0;
+        nicWrEn = 1'b0;
+        d_in    = 64'd0;
+        net_di  = 64'd0;
+
+        cpu_load(2'b01, read_value);
+        check_word("input status after reset", read_value, 64'd0);
+        cpu_load(2'b11, read_value);
+        check_word("output status after reset", read_value, 64'd0);
+
+        // 2. A disabled processor write must not queue an output packet.
+        @(negedge clk);
+        nicEn   = 1'b0;
+        nicWrEn = 1'b1;
+        addr    = 2'b10;
+        d_in    = packet_vc0;
         @(posedge clk);
         #1;
-        check_packet(d_out, {PACKET_SIZE{1'b0}}, "empty input-buffer read returns zero");
-
-        // ------------------------------------------------------------------
-        // 3. Stores to read-only addresses 00, 01, and 11 are ignored.
-        // ------------------------------------------------------------------
-        for (a = 0; a < 4; a = a + 1) begin
-            if (a != 2) begin
-                @(negedge clk);
-                nicEn = 1'b1;
-                nicEnWr = 1'b1;
-                addr = a[1:0];
-                d_in = ~packet_a;
-                net_si = 1'b0;
-                @(posedge clk);
-                #1;
-                check_bit(net_ri, 1'b1, "illegal processor write does not fill input buffer");
-                check_status(2'b01, 1'b0, "illegal write leaves input status empty");
-                check_status(2'b11, 1'b0, "illegal write leaves output status empty");
-            end
-        end
-
-        // ------------------------------------------------------------------
-        // 4. Output buffer write, full-buffer overwrite protection, and reads.
-        // ------------------------------------------------------------------
-        net_ro = 1'b0;
-        net_polarity = 1'b0; // VC1 is eligible at polarity 0.
-        store_output(packet_a);
-        check_status(2'b11, 1'b1, "legal store sets output status full");
-        check_packet(net_do, packet_a, "output packet is visible while buffered");
-        check_bit(net_so, 1'b0, "output send waits while router is not ready");
-
-        // An attempted write while full must not corrupt packet_a.
+        check_word("d_out when processor access is disabled", d_out, 64'd0);
         @(negedge clk);
-        nicEn = 1'b1;
-        nicEnWr = 1'b1;
-        addr = 2'b10;
-        d_in = packet_b;
-        net_ro = 1'b0;
+        nicWrEn = 1'b0;
+        cpu_load(2'b11, read_value);
+        check_word("disabled write left output buffer empty",
+                   read_value, 64'd0);
+
+        // 3. Input receive, full-buffer backpressure, and processor release.
+        router_inject(input_packet_a);
+        check_bit("net_ri while input buffer is full", net_ri, 1'b0);
+
+        cpu_load(2'b01, read_value);
+        check_word("input status reports full", read_value,
+                   64'h0000_0000_0000_0001);
+        check_bit("status read does not free input buffer", net_ri, 1'b0);
+
+        // A disabled addr-00 read must not consume the received packet.
+        @(negedge clk);
+        nicEn   = 1'b0;
+        nicWrEn = 1'b0;
+        addr    = 2'b00;
         @(posedge clk);
         #1;
-        check_status(2'b11, 1'b1, "output buffer remains full after rejected overwrite");
-        check_packet(net_do, packet_a, "rejected overwrite preserves original output packet");
-
-        // Address 10 is write-only; attempting to read it returns zero.
+        check_word("disabled input read returns zero", d_out, 64'd0);
+        check_bit("disabled input read preserves packet", net_ri, 1'b0);
         @(negedge clk);
-        nicEn = 1'b1;
-        nicEnWr = 1'b0;
-        addr = 2'b10;
-        @(posedge clk);
-        #1;
-        check_packet(d_out, {PACKET_SIZE{1'b0}}, "output-buffer read returns zero");
 
-        // Wrong phase must stall an occupied output buffer even when net_ro=1.
+        // Stores to input-buffer/status addresses are ignored.
+        cpu_store(2'b00, input_packet_b);
+        cpu_store(2'b01, input_packet_b);
+        check_bit("ignored stores preserve full input buffer", net_ri, 1'b0);
+
+        // Attempt another router receive while full; it must not overwrite A.
         @(negedge clk);
-        nicEn = 1'b0;
-        nicEnWr = 1'b0;
-        net_ro = 1'b1;
-        net_polarity = 1'b1; // packet_a VC=1; wrong phase
-        #1;
-        check_bit(net_so, 1'b0, "wrong VC polarity blocks output send");
-        check_packet(net_do, packet_a, "packet remains visible during wrong phase");
-        @(posedge clk);
-        #1;
-        check_status(2'b11, 1'b1, "wrong phase does not consume output packet");
-        check_packet(net_do, packet_a, "packet is held across wrong-phase clock edge");
-
-        // Correct phase but no router readiness must also hold the packet.
-        @(negedge clk);
-        nicEn = 1'b0;
-        net_polarity = 1'b0;
-        net_ro = 1'b0;
-        #1;
-        check_bit(net_so, 1'b0, "correct VC phase still waits for net_ro");
-        check_packet(net_do, packet_a, "packet data remains stable under backpressure");
-
-        // Simultaneously transmit packet_a and receive packet_b: the two
-        // directions are independent and may complete on the same rising edge.
-        net_ro = 1'b1;
+        net_di = input_packet_b;
         net_si = 1'b1;
-        net_di = packet_b;
-        #1;
-        check_bit(net_so, 1'b1, "matching phase plus net_ro asserts net_so");
-        check_bit(net_ri, 1'b1, "empty input buffer is ready for simultaneous receive");
+        check_bit("net_ri blocks second router packet", net_ri, 1'b0);
         @(posedge clk);
         #1;
-        check_bit(net_so, 1'b0, "net_so deasserts after output transfer");
-        check_packet(net_do, {PACKET_SIZE{1'b0}}, "net_do returns zero after output buffer empties");
-        check_bit(net_ri, 1'b0, "input buffer becomes full after simultaneous receive");
-        check_status(2'b11, 1'b0, "output buffer is empty after transfer");
-        check_status(2'b01, 1'b1, "input buffer is full after simultaneous receive");
-
-        // Read and consume packet_b from the input channel.
+        check_bit("input buffer remains full after blocked receive",
+                  net_ri, 1'b0);
         @(negedge clk);
         net_si = 1'b0;
-        nicEn = 1'b1;
-        nicEnWr = 1'b0;
-        addr = 2'b00;
-        @(posedge clk);
-        #1;
-        check_packet(d_out, packet_b, "input-buffer read captures received packet at rising edge");
-        check_bit(net_ri, 1'b1, "reading input packet releases input buffer");
-        check_status(2'b01, 1'b0, "input status is empty after packet read");
 
-        // A later read of the now-empty input buffer captures zero.
-        @(negedge clk);
-        addr = 2'b00;
-        @(posedge clk);
-        #1;
-        check_packet(d_out, {PACKET_SIZE{1'b0}}, "empty input-buffer reread returns zero");
-        $display("PASS: input_buffer_read_releases");
+        cpu_load(2'b00, read_value);
+        check_word("address 00 returns the original input packet",
+                   read_value, input_packet_a);
+        check_bit("address 00 read releases input buffer", net_ri, 1'b1);
+        cpu_load(2'b01, read_value);
+        check_word("input status after packet read", read_value, 64'd0);
 
-        // A processor store on the exact edge an occupied packet transmits is
-        // still ignored: the buffer was full before that edge.
-        store_output(packet_a);
-        @(negedge clk);
-        nicEn = 1'b1;
-        nicEnWr = 1'b1;
-        addr = 2'b10;
-        d_in = packet_b;
-        net_ro = 1'b1;
-        net_polarity = 1'b0;
-        net_si = 1'b0;
-        #1;
-        check_bit(net_so, 1'b1, "occupied packet transmits during concurrent CPU store");
-        @(posedge clk);
-        #1;
-        check_status(2'b11, 1'b0, "concurrent store is ignored when old packet transmits");
-        check_packet(net_do, {PACKET_SIZE{1'b0}}, "output remains empty after concurrent store");
+        // 4. Output tests: both VC values, blocking, phase, and simultaneous I/O.
+        exercise_output_packet(packet_vc0, replacement_packet,
+                               1'b0, input_packet_concurrent);
+        exercise_output_packet(packet_vc1, packet_vc0,
+                               1'b1, input_packet_concurrent);
 
-        // ------------------------------------------------------------------
-        // 5. Exhaust output routing-phase eligibility for all 16 mesh
-        //    destination coordinates and both VC values (32 packets total).
-        //    NIC forwards destination fields opaquely; mesh routing is in router.
-        // ------------------------------------------------------------------
-        net_ro = 1'b0;
-        net_si = 1'b0;
-        nicEn = 1'b0;
-        nicEnWr = 1'b0;
-        for (vc_i = 0; vc_i < 2; vc_i = vc_i + 1) begin
-            for (dx_i = 0; dx_i < 4; dx_i = dx_i + 1) begin
-                for (dy_i = 0; dy_i < 4; dy_i = dy_i + 1) begin
-                    packet = make_packet(vc_i[0], dx_i[1:0], dy_i[1:0],
-                                         8'h5A,
-                                         (16'd1000 + vc_i*100 + dx_i*10 + dy_i),
-                                         (32'h12340000 | (vc_i << 8) | (dx_i << 4) | dy_i));
-                    store_output(packet);
-                    check_packet(net_do, packet, "output buffer preserves every tested 4x4 destination packet");
-
-                    // A packet with VC=1 is blocked at polarity=1; VC=0 is
-                    // blocked at polarity=0. This is exactly vc != ~polarity.
-                    @(negedge clk);
-                    nicEn = 1'b0;
-                    nicEnWr = 1'b0;
-                    net_ro = 1'b1;
-                    net_polarity = vc_i[0];
-                    #1;
-                    check_bit(net_so, 1'b0, "wrong phase blocks each VC/destination combination");
-                    check_packet(net_do, packet, "blocked packet remains unchanged");
-                    @(posedge clk);
-                    #1;
-                    check_packet(net_do, packet, "blocked packet survives a rising edge");
-                    check_status(2'b11, 1'b1, "blocked output packet remains marked full");
-
-                    @(negedge clk);
-                    nicEn = 1'b0;
-                    net_polarity = ~vc_i[0];
-                    net_ro = 1'b0;
-                    #1;
-                    check_bit(net_so, 1'b0, "matching phase cannot send without net_ro");
-                    net_ro = 1'b1;
-                    #1;
-                    check_bit(net_so, 1'b1, "matching phase and net_ro send each VC/destination packet");
-                    check_packet(net_do, packet, "transmitted packet data matches stored packet");
-                    @(posedge clk);
-                    #1;
-                    check_bit(net_so, 1'b0, "send clears after each transfer");
-                    check_packet(net_do, {PACKET_SIZE{1'b0}}, "output data clears when output buffer empties");
-                    check_status(2'b11, 1'b0, "output status clears after each transfer");
-                end
-            end
-        end
-
-        // ------------------------------------------------------------------
-        // 6. Input reception tests every VC and destination pair; checks ready,
-        //    full-buffer backpressure, read data, status bit placement and consume.
-        // ------------------------------------------------------------------
-        net_ro = 1'b0;
-        net_si = 1'b0;
-        nicEn = 1'b0;
-        nicEnWr = 1'b0;
-        for (vc_i = 0; vc_i < 2; vc_i = vc_i + 1) begin
-            for (dx_i = 0; dx_i < 4; dx_i = dx_i + 1) begin
-                for (dy_i = 0; dy_i < 4; dy_i = dy_i + 1) begin
-                    packet = make_packet(vc_i[0], dx_i[1:0], dy_i[1:0],
-                                         8'hC3,
-                                         (16'd2000 + vc_i*100 + dx_i*10 + dy_i),
-                                         (32'hABCD0000 | (vc_i << 8) | (dx_i << 4) | dy_i));
-
-                    @(negedge clk);
-                    nicEn = 1'b0;
-                    nicEnWr = 1'b0;
-                    net_si = 1'b1;
-                    net_di = packet;
-                    #1;
-                    check_bit(net_ri, 1'b1, "empty input buffer advertises ready");
-                    @(posedge clk);
-                    #1;
-                    check_bit(net_ri, 1'b0, "accepted packet makes input buffer full");
-
-                    // Try to overwrite the full input buffer. net_ri=0 must
-                    // prevent capture even though net_si remains asserted.
-                    @(negedge clk);
-                    net_si = 1'b1;
-                    net_di = ~packet;
-                    nicEn = 1'b0;
-                    nicEnWr = 1'b0;
-                    addr = 2'b00; // Disabled processor read must not consume it.
-                    #1;
-                    check_bit(net_ri, 1'b0, "full input buffer deasserts ready");
-                    @(posedge clk);
-                    #1;
-                    check_bit(net_ri, 1'b0, "full input buffer stays full under backpressure");
-
-                    // Read status first: address 00 consumes the input packet,
-                    // so its data must be sampled on that same rising edge.
-                    @(negedge clk);
-                    nicEn = 1'b1;
-                    nicEnWr = 1'b0;
-                    addr = 2'b01;
-                    @(posedge clk);
-                    #1;
-                    expected_status = {{(PACKET_SIZE-1){1'b0}}, 1'b1};
-                    check_packet(d_out, expected_status, "input status is in LSB and all other bits are zero");
-
-                    // Address 00 captures the old packet and frees the input
-                    // buffer together at the next rising edge.
-                    @(negedge clk);
-                    net_si = 1'b0;
-                    addr = 2'b00;
-                    @(posedge clk);
-                    #1;
-                    check_packet(d_out, packet, "input read captures received packet at rising edge");
-                    check_bit(net_ri, 1'b1, "input buffer becomes ready after read");
-                    check_status(2'b01, 1'b0, "input status clears after read");
-
-                    @(negedge clk);
-                    addr = 2'b00;
-                    @(posedge clk);
-                    #1;
-                    check_packet(d_out, {PACKET_SIZE{1'b0}}, "empty input-buffer reread returns zero");
-                    nicEn = 1'b0;
-                    nicEnWr = 1'b0;
-                end
-            end
-        end
-
-        // ------------------------------------------------------------------
-        // 7. Reset priority with both buffers occupied and activity attempted.
-        // ------------------------------------------------------------------
-        net_ro = 1'b0;
-        net_si = 1'b0;
-        nicEn = 1'b0;
-        nicEnWr = 1'b0;
-        store_output(packet_a);
-        @(negedge clk);
-        net_si = 1'b1;
-        net_di = packet_b;
-        @(posedge clk);
-        #1;
-        check_status(2'b01, 1'b1, "input buffer filled before reset-priority test");
-        check_status(2'b11, 1'b1, "output buffer filled before reset-priority test");
-
-        @(negedge clk);
-        reset = 1'b1;
-        net_si = 1'b1;
-        net_ro = 1'b1;
-        net_polarity = 1'b0;
-        nicEn = 1'b1;
-        nicEnWr = 1'b1;
-        addr = 2'b10;
-        d_in = ~packet_b;
-        @(posedge clk);
-        #1;
-        check_bit(net_ri, 1'b1, "reset clears input full state despite net_si");
-        check_bit(net_so, 1'b0, "reset clears output send state");
-        check_packet(net_do, {PACKET_SIZE{1'b0}}, "reset empties output data channel");
-        check_status(2'b01, 1'b0, "reset clears input status");
-        check_status(2'b11, 1'b0, "reset clears output status");
-
-        @(negedge clk);
-        reset = 1'b0;
-        net_si = 1'b0;
-        net_ro = 1'b0;
-        nicEn = 1'b0;
-        nicEnWr = 1'b0;
-        #1;
-        check_bit(net_ri, 1'b1, "input is ready after reset is deasserted");
-        check_bit(net_so, 1'b0, "output send stays low after reset is deasserted");
-
-        if (errors == 0) begin
-            $display("\nALL CARDINAL NIC TESTS PASSED.");
+        if (net_ri === 1'b0) begin
+            cpu_load(2'b01, read_value);
+            check_word("simultaneous receive left input full",
+                       read_value, 64'h0000_0000_0000_0001);
+            cpu_load(2'b00, read_value);
+            check_word("simultaneously received packet",
+                       read_value, input_packet_concurrent);
+            check_bit("input buffer empty after concurrent packet read",
+                      net_ri, 1'b1);
         end else begin
-            $display("\nCARDINAL NIC TESTS FAILED: %0d error(s).", errors);
+            $display("ERROR at %0t ns: expected concurrent input packet was not captured",
+                     $time);
+            errors = errors + 1;
         end
+
+        check_count("total accepted output packets", send_events, 2);
+
+        if (errors == 0)
+            $display("ALL CARDINAL NIC TESTS PASSED");
+        else
+            $display("ALL CARDINAL NIC TESTS FAILED: %0d error(s)", errors);
+
         $finish;
     end
+
 endmodule
+
