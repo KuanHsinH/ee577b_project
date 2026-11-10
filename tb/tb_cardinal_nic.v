@@ -55,7 +55,7 @@ module tb_cardinal_nic;
         .net_polarity(net_polarity)
     );
 
-    // 100 MHz test clock; timing itself is not part of the NIC specification.
+    // 250 MHz test clock (4 ns period), as required by the project setup.
     initial clk = 1'b0;
     always #2 clk = ~clk;
 
@@ -107,6 +107,7 @@ module tb_cardinal_nic;
             nicEn = 1'b1;
             nicEnWr = 1'b0;
             addr = status_addr;
+            @(posedge clk);
             #1;
             expected_status = {{(PACKET_SIZE-1){1'b0}}, expected};
             check_packet(d_out, expected_status, label_text);
@@ -167,17 +168,17 @@ module tb_cardinal_nic;
             nicEn = 1'b0;
             nicEnWr = 1'b0;
             #1;
-            check_packet(d_out, {PACKET_SIZE{1'b0}}, "d_out is zero when nicEn=0");
+            check_packet(d_out, {PACKET_SIZE{1'b0}}, "disabled read leaves the reset read value unchanged");
 
             nicEn = 1'b0;
             nicEnWr = 1'b1;
             #1;
-            check_packet(d_out, {PACKET_SIZE{1'b0}}, "d_out is zero when disabled with write-enable high");
+            check_packet(d_out, {PACKET_SIZE{1'b0}}, "disabled write leaves the reset read value unchanged");
 
             nicEn = 1'b1;
             nicEnWr = 1'b1;
             #1;
-            check_packet(d_out, {PACKET_SIZE{1'b0}}, "d_out is zero during processor write");
+            check_packet(d_out, {PACKET_SIZE{1'b0}}, "processor write does not change the read-data register");
             // This section checks read-port mux behavior only; do not leave
             // a legal addr=10 store enabled across the next active edge.
             nicEn = 1'b0;
@@ -190,6 +191,7 @@ module tb_cardinal_nic;
         nicEn = 1'b1;
         nicEnWr = 1'b0;
         addr = 2'b00;
+        @(posedge clk);
         #1;
         check_packet(d_out, {PACKET_SIZE{1'b0}}, "empty input-buffer read returns zero");
 
@@ -239,6 +241,7 @@ module tb_cardinal_nic;
         nicEn = 1'b1;
         nicEnWr = 1'b0;
         addr = 2'b10;
+        @(posedge clk);
         #1;
         check_packet(d_out, {PACKET_SIZE{1'b0}}, "output-buffer read returns zero");
 
@@ -287,12 +290,19 @@ module tb_cardinal_nic;
         nicEn = 1'b1;
         nicEnWr = 1'b0;
         addr = 2'b00;
-        #1;
-        check_packet(d_out, packet_b, "input-buffer read returns received packet");
         @(posedge clk);
         #1;
+        check_packet(d_out, packet_b, "input-buffer read captures received packet at rising edge");
         check_bit(net_ri, 1'b1, "reading input packet releases input buffer");
-        check_packet(d_out, {PACKET_SIZE{1'b0}}, "consumed input packet is no longer readable");
+        check_status(2'b01, 1'b0, "input status is empty after packet read");
+
+        // A later read of the now-empty input buffer captures zero.
+        @(negedge clk);
+        addr = 2'b00;
+        @(posedge clk);
+        #1;
+        check_packet(d_out, {PACKET_SIZE{1'b0}}, "empty input-buffer reread returns zero");
+        $display("PASS: input_buffer_read_releases");
 
         // A processor store on the exact edge an occupied packet transmits is
         // still ignored: the buffer was full before that edge.
@@ -406,28 +416,33 @@ module tb_cardinal_nic;
                     #1;
                     check_bit(net_ri, 1'b0, "full input buffer stays full under backpressure");
 
-                    // Inspect packet and status before the read-consume edge.
+                    // Read status first: address 00 consumes the input packet,
+                    // so its data must be sampled on that same rising edge.
+                    @(negedge clk);
                     nicEn = 1'b1;
                     nicEnWr = 1'b0;
-                    addr = 2'b00;
-                    #1;
-                    check_packet(d_out, packet, "input buffer preserves received packet exactly");
                     addr = 2'b01;
+                    @(posedge clk);
                     #1;
                     expected_status = {{(PACKET_SIZE-1){1'b0}}, 1'b1};
                     check_packet(d_out, expected_status, "input status is in LSB and all other bits are zero");
 
-                    // Reading address 00 consumes the packet at the next edge.
+                    // Address 00 captures the old packet and frees the input
+                    // buffer together at the next rising edge.
                     @(negedge clk);
                     net_si = 1'b0;
                     addr = 2'b00;
-                    #1;
-                    check_packet(d_out, packet, "input data remains available until consume edge");
                     @(posedge clk);
                     #1;
+                    check_packet(d_out, packet, "input read captures received packet at rising edge");
                     check_bit(net_ri, 1'b1, "input buffer becomes ready after read");
-                    check_packet(d_out, {PACKET_SIZE{1'b0}}, "input data read returns zero after consume");
                     check_status(2'b01, 1'b0, "input status clears after read");
+
+                    @(negedge clk);
+                    addr = 2'b00;
+                    @(posedge clk);
+                    #1;
+                    check_packet(d_out, {PACKET_SIZE{1'b0}}, "empty input-buffer reread returns zero");
                     nicEn = 1'b0;
                     nicEnWr = 1'b0;
                 end
