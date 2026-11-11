@@ -1,0 +1,92 @@
+ncsim -STATUS -NOCOPYRIGHT -MESSAGES -NCFATAL INVSUP -NOWARN DLBRLK -TCL -NOLOG -NOKEY -INPUT ./scripts/runscript_nogui.tcl work.tb_cardinal_nic
+Loading snapshot work.tb_cardinal_nic:module .................... Done
+ncsim> run
+PASS at 3.00 ns: net_ri during reset = 1
+PASS at 3.00 ns: net_so during reset = 0
+PASS at 3.00 ns: net_do during reset = 0000000000000000
+PASS at 3.00 ns: d_out during reset = 0000000000000000
+PASS at 7.00 ns: net_ri during reset = 1
+PASS at 7.00 ns: net_so during reset = 0
+PASS at 7.00 ns: net_do during reset = 0000000000000000
+PASS at 7.00 ns: d_out during reset = 0000000000000000
+PASS at 11.00 ns: net_ri during reset = 1
+PASS at 11.00 ns: net_so during reset = 0
+PASS at 11.00 ns: net_do during reset = 0000000000000000
+PASS at 11.00 ns: d_out during reset = 0000000000000000
+PASS at 20.00 ns: input status after reset = 0000000000000000
+PASS at 28.00 ns: output status after reset = 0000000000000000
+PASS at 35.00 ns: d_out when processor access is disabled = 0000000000000000
+PASS at 44.00 ns: disabled write left output buffer empty = 0000000000000000
+PASS at 48.00 ns: net_ri before router injection = 1
+PASS at 51.00 ns: net_ri after router injection = 0
+PASS at 52.00 ns: net_ri while input buffer is full = 0
+PASS at 60.00 ns: input status reports full = 0000000000000001
+PASS at 60.00 ns: status read does not free input buffer = 0
+PASS at 67.00 ns: disabled input read returns zero = 0000000000000000
+PASS at 67.00 ns: disabled input read preserves packet = 0
+PASS at 84.00 ns: ignored stores preserve full input buffer = 0
+PASS at 88.00 ns: net_ri blocks second router packet = 0
+PASS at 91.00 ns: input buffer remains full after blocked receive = 0
+PASS at 100.00 ns: address 00 returns the original input packet = 0123456789abcdef
+PASS at 100.00 ns: address 00 read releases input buffer = 1
+PASS at 108.00 ns: input status after packet read = 0000000000000000
+PASS at 116.00 ns: net_do while output packet is queued = 123456789abcdef0
+PASS at 124.00 ns: output status after address-10 store = 0000000000000001
+PASS at 132.00 ns: read from write-only address 10 = 0000000000000000
+PASS at 132.00 ns: packet remains after address-10 read = 123456789abcdef0
+PASS at 140.00 ns: full output buffer rejects second store = 123456789abcdef0
+PASS at 156.00 ns: output status after ignored write to address 11 = 0000000000000001
+PASS at 156.00 ns: packet survives ignored address-11 write = 123456789abcdef0
+PASS at 159.00 ns: net_so while router is not ready = 0
+PASS at 159.00 ns: net_do remains stable while blocked = 123456789abcdef0
+PASS at 163.00 ns: net_so while router is not ready = 0
+PASS at 163.00 ns: net_do remains stable while blocked = 123456789abcdef0
+PASS at 167.00 ns: net_so while router is not ready = 0
+PASS at 167.00 ns: net_do remains stable while blocked = 123456789abcdef0
+PASS at 173.00 ns: net_so in the wrong VC phase = 0
+PASS at 175.00 ns: packet remains after wrong-phase edge = 123456789abcdef0
+PASS at 175.00 ns: no send at wrong-phase edge = 0
+PASS at 177.00 ns: net_so after blocking is restored = 0
+PASS at 184.00 ns: output status remains full while blocked = 0000000000000001
+PASS at 192.00 ns: net_do on eligible send edge = 123456789abcdef0
+194.00 ns: accepted send #1, packet=123456789abcdef0 polarity=1
+PASS at 195.00 ns: send count after accepted packet = 1
+PASS at 195.00 ns: net_so after accepted packet = 0
+PASS at 195.00 ns: net_do after output buffer empties = 0000000000000000
+PASS at 204.00 ns: output status after accepted send = 0000000000000000
+PASS at 212.00 ns: net_do while output packet is queued = 923456789abcdef1
+PASS at 220.00 ns: output status after address-10 store = 0000000000000001
+PASS at 228.00 ns: read from write-only address 10 = 0000000000000000
+PASS at 228.00 ns: packet remains after address-10 read = 923456789abcdef1
+PASS at 236.00 ns: full output buffer rejects second store = 923456789abcdef1
+PASS at 252.00 ns: output status after ignored write to address 11 = 0000000000000001
+PASS at 252.00 ns: packet survives ignored address-11 write = 923456789abcdef1
+PASS at 255.00 ns: net_so while router is not ready = 0
+PASS at 255.00 ns: net_do remains stable while blocked = 923456789abcdef1
+PASS at 259.00 ns: net_so while router is not ready = 0
+PASS at 259.00 ns: net_do remains stable while blocked = 923456789abcdef1
+PASS at 263.00 ns: net_so while router is not ready = 0
+PASS at 263.00 ns: net_do remains stable while blocked = 923456789abcdef1
+PASS at 265.00 ns: net_so in the wrong VC phase = 0
+PASS at 267.00 ns: packet remains after wrong-phase edge = 923456789abcdef1
+PASS at 267.00 ns: no send at wrong-phase edge = 1
+PASS at 269.00 ns: net_so after blocking is restored = 0
+PASS at 276.00 ns: output status remains full while blocked = 0000000000000001
+PASS at 284.00 ns: net_do on eligible send edge = 923456789abcdef1
+PASS at 284.00 ns: net_ri before simultaneous receive/send = 1
+286.00 ns: accepted send #2, packet=923456789abcdef1 polarity=0
+PASS at 287.00 ns: send count after accepted packet = 2
+PASS at 287.00 ns: net_so after accepted packet = 0
+PASS at 287.00 ns: net_do after output buffer empties = 0000000000000000
+PASS at 287.00 ns: net_ri after simultaneous receive/send = 0
+PASS at 296.00 ns: output status after accepted send = 0000000000000000
+PASS at 304.00 ns: simultaneous receive left input full = 0000000000000001
+PASS at 312.00 ns: simultaneously received packet = 55aa00ff1234abcd
+PASS at 312.00 ns: input buffer empty after concurrent packet read = 1
+PASS at 312.00 ns: total accepted output packets = 2
+ALL CARDINAL NIC TESTS PASSED
+Simulation complete via $finish(1) at time 312 NS + 0
+./tb/tb_cardinal_nic.v:476         $finish;
+ncsim> exit
+ncsim: Memory Usage - 38.6M program + 253.6M data = 292.2M total (292.7M Peak)
+ncsim: CPU Usage - 0.0s system + 0.0s user = 0.0s total (13.0s, 0.4% cpu)

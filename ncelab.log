@@ -1,0 +1,36 @@
+ncelab(64): 15.20-s086: (c) Copyright 1995-2020 Cadence Design Systems, Inc.
+TOOL:	ncelab(64)	15.20-s086: Started on Nov 11, 2026 at 00:28:38 PST
+ncelab
+    -ACCESS +rwc
+    -NCFATAL INVSUP
+    -NCFATAL CUNOTB
+    -NCFATAL CUVMPW
+    -ERRORMAX 5
+    -UPDATE
+    -MESSAGES
+    -TIMESCALE 1ns/10ps
+    work.tb_cardinal_nic
+
+	Elaborating the design hierarchy:
+		Caching library 'work' ....... Done
+	Building instance overlay tables: .................... Done
+	Generating native compiled code:
+		work.cardinal_nic:module <0x51507285>
+			streams:   9, words:  4265
+		work.tb_cardinal_nic:module <0x6d068ee2>
+			streams:  21, words: 68272
+	Building instance specific data structures.
+	Loading native compiled code:     .................... Done
+	Design hierarchy summary:
+		                  Instances  Unique
+		Modules:                  2       2
+		Registers:               46      46
+		Scalar wires:             9       -
+		Vectored wires:           5       -
+		Always blocks:            4       4
+		Initial blocks:           1       1
+		Cont. assignments:        3       3
+		Pseudo assignments:      10      10
+		Simulation timescale:  10ps
+	Writing initial simulation snapshot: work.tb_cardinal_nic:module
+TOOL:	ncelab(64)	15.20-s086: Exiting on Nov 11, 2026 at 00:28:38 PST  (total: 00:00:00)

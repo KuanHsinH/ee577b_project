@@ -1,28 +1,25 @@
 ////////////////////////////////////////////////////////////////////////////
-// Cardinal processor - top-level module (EE577B Project Phase 2)
+// Cardinal processor - top-level module (EE577B Phase 3)
 //
-// DO NOT CHANGE THE MODULE NAME OR THE PORT LIST BELOW.
-// The grading testbench instantiates cardinal_cpu by these exact port names.
-// If the module name, a port name, a direction or a width differs, the
-// elaboration step (ncelab) stops with an error.
+// Phase 2 four-stage processor with the Phase 3 NIC memory map.
+// The module name and port list match the Phase 3 interface used by
+// cardinal_cmp.
 //
-// Implement the 4-stage pipeline (IF, ID, EX/MEM, WB) described in the
-// Phase 2 handout and the Cardinal Processor ISA manual. You may add any
-// number of other modules and files in design/ (register file, ALU,
-// decoder, ...); only this interface is fixed.
+// NIC address decoding (memAddr = {16'b0, immediate} = addr_out):
+//   * memAddr[16] and memAddr[17] both 1 (immediate[0:1] == 2'b11): the
+//     load or store accesses the NIC. memAddr[30:31] (immediate[14:15])
+//     selects the NIC register (addr_nic). Assert nicEn, and nicWrEn for a
+//     store; memEn and memWrEn must stay 0.
+//   * Otherwise it is a data memory access, as in Phase 2 (only
+//     memAddr[24:31] are used by the memory model); nicEn stays 0.
 //
-// Memory interface (models in include/, part of the testbench):
-//   * Instruction memory: asynchronous. inst_in = IMEM[pc_out[22:29]].
-//   * Data memory: synchronous. memEn, memWrEn, addr_out[24:31] and d_out
-//     are sampled at a rising clock edge; a store is written at that edge,
-//     and load data appears on d_in after that edge (for the next cycle).
+// NIC timing (same as the data memory): addr_nic, din_nic, nicEn and
+// nicWrEn are sampled at a rising clock edge; a store is written at that
+// edge, and the register selected by a load appears on dout_nic after that
+// edge, during the following cycle. A load from the NIC therefore takes
+// its data from dout_nic where a load from the data memory takes d_in.
 ////////////////////////////////////////////////////////////////////////////
-module cardinal_cpu #(
-    parameter INST_WIDTH = 32,
-    parameter DATA_WIDTH = 64,
-    parameter REG_ADDR_WIDTH = 5,
-    parameter MEM_ADDR_WIDTH = 16
-)(
+module cardinal_cpu (
     input         clk,        // rising-edge clock
     input         reset,      // synchronous, active high
     input  [0:31] inst_in,    // instruction from the instruction memory
@@ -31,8 +28,19 @@ module cardinal_cpu #(
     output [0:31] addr_out,   // data memory address (64-bit word address)
     output        memEn,      // data memory enable (load or store)
     output        memWrEn,    // data memory write enable (store)
-    output [0:63] d_out       // store data to the data memory
+    output [0:63] d_out,      // store data to the data memory
+    output [0:1]  addr_nic,   // NIC register address (memAddr[30:31])
+    output [0:63] din_nic,    // store data to the NIC (NIC port d_in)
+    input  [0:63] dout_nic,   // load data from the NIC (NIC port d_out)
+    output        nicEn,      // NIC enable (load or store to a NIC address)
+    output        nicWrEn     // NIC write enable (store to a NIC address)
 );
+
+    // Keep the Phase 3 port list fixed; these widths come from the Phase 2 CPU.
+    localparam INST_WIDTH = 32;
+    localparam DATA_WIDTH = 64;
+    localparam REG_ADDR_WIDTH = 5;
+    localparam MEM_ADDR_WIDTH = 16;
 
     // 6 bit function code
     localparam VAND   = 6'b000001,
@@ -187,11 +195,17 @@ module cardinal_cpu #(
 
 
 
-    // assigning mem_addr and mem_en
-    assign memEn = mem_en_ID;
-    assign memWrEn = mem_we_ID;
+    // The upper two bits of the 16-bit immediate select the NIC.
+    // A NIC access must not also reach data memory.
+    wire nic_selected_ID = (imm_addr_ID[0:1] == 2'b11);
     assign addr_out = {16'b0, imm_addr_ID};
+    assign addr_nic = addr_out[30:31];
+    assign din_nic = forward_MUX_d0_ID;
     assign d_out = forward_MUX_d0_ID;
+    assign nicEn = mem_en_ID && nic_selected_ID;
+    assign nicWrEn = mem_we_ID && nic_selected_ID;
+    assign memEn = mem_en_ID && !nic_selected_ID;
+    assign memWrEn = mem_we_ID && !nic_selected_ID;
     
     // branch
     always @(*) begin
@@ -245,6 +259,7 @@ module cardinal_cpu #(
 
     wire [0:5]                function_code_EX = ID_EX_reg[147:152];
     wire [0:15]               imm_addr_EX      = ID_EX_reg[153:168];
+    wire                      nic_selected_EX  = (imm_addr_EX[0:1] == 2'b11);
     wire [0:5]                op_type_EX       = ID_EX_reg[169:174]; // delete
     wire                      mem_en_EX        = ID_EX_reg[175];
     wire                      mem_we_EX        = ID_EX_reg[176];
@@ -260,7 +275,10 @@ module cardinal_cpu #(
     );
 
     // LD and R_ALU
-    assign rf_wrData_EX = mem_en_EX ? d_in : ALU_out;
+    // Memory and NIC both return registered data after the request edge.
+    assign rf_wrData_EX = mem_en_EX
+                        ? (nic_selected_EX ? dout_nic : d_in)
+                        : ALU_out;
 
     // EX/WB reg
     reg [0:77] EX_WB_reg;
@@ -332,5 +350,3 @@ module cardinal_cpu #(
     assign rf_wrByteEn_WB = EX_WB_reg[70:77];
 
 endmodule
-
-

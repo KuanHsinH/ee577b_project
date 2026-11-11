@@ -1,9 +1,3 @@
-`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW_div.v"
-`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW_sqrt.v"
-`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW01_addsub.v"
-`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW02_mult.v"
-`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW_shifter.v"
-
 module ALU #(
     parameter DATA_WIDTH = 64
 ) (

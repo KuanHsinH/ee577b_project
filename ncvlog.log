@@ -1,0 +1,29 @@
+ncvlog(64): 15.20-s086: (c) Copyright 1995-2020 Cadence Design Systems, Inc.
+TOOL:	ncvlog(64)	15.20-s086: Started on Nov 11, 2026 at 00:28:31 PST
+ncvlog
+    -STATUS
+    -MESSAGES
+    -UPDATE
+    -INCDIR ./include
+    -INCDIR /tools/synopsys/syn/Y-2026.03/dw/sim_ver
+    -work work
+    ./tb/tb_cmp.v
+    ./tb/tb_cardinal_nic.v
+    ./tb/tb_cardinal_node.v
+
+file: ./tb/tb_cmp.v
+	module work.dmem
+		errors: 0, warnings: 0
+	module work.imem
+		errors: 0, warnings: 0
+	module work.tb_cmp
+		errors: 0, warnings: 0
+file: ./tb/tb_cardinal_nic.v
+	module work.tb_cardinal_nic
+		errors: 0, warnings: 0
+file: ./tb/tb_cardinal_node.v
+	module work.tb_cardinal_node
+		errors: 0, warnings: 0
+ncvlog: Memory Usage - 21.4M program + 20.7M data = 42.0M total
+ncvlog: CPU Usage - 0.0s system + 0.0s user = 0.0s total (0.1s, 16.4% cpu)
+TOOL:	ncvlog(64)	15.20-s086: Exiting on Nov 11, 2026 at 00:28:31 PST  (total: 00:00:00)

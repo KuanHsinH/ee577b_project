@@ -477,4 +477,3 @@ module tb_cardinal_nic;
     end
 
 endmodule
-
