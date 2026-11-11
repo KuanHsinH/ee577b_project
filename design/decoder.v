@@ -12,7 +12,9 @@ module decoder(
     mem_we,
     imm_Addr,
     op_type,
-    is_branch
+    is_branch,
+    nic_En,
+    nic_WrEn
 );
 
     input      [0:31] inst_in;
@@ -32,6 +34,7 @@ module decoder(
     output     [0:5]  op_type;
 
     output reg        is_branch;
+    output reg        nic_En, nic_WrEn;
 
     // 6 bit function code
     localparam VAND   = 6'b000001,
@@ -91,6 +94,9 @@ module decoder(
 
         is_branch        = 1'b0;
 
+        nic_En           = 1'b0;
+        nic_WrEn         = 1'b0;
+
         case (inst_in[0:5])
             R_ALU: begin
                 if(inst_in[26:31] == 6'd0 || inst_in[26:31] > 6'd18) rf_we = 1'b0;
@@ -113,22 +119,55 @@ module decoder(
             end
 
             M_LD: begin
-                rf_we       = 1'b1;
-                rD_addr     = inst_in[6:10];
-                rf_wrByteEn = 8'b1111_1111;
+                if(inst_in[16:17] == 2'b11) begin
+                    rf_we       = 1'b1;
+                    rD_addr     = inst_in[6:10];
+                    rf_wrByteEn = 8'b1111_1111;
 
-                mem_en     = 1'b1;
-                mem_we     = 1'b0;
-                imm_Addr   = inst_in[16:31];
+                    mem_en     = 1'b0;
+                    mem_we     = 1'b0;
+                    imm_Addr   = inst_in[16:31];
+
+                    nic_En     = 1'b1;
+                    nic_WrEn   = 1'b0;
+                end
+                else begin
+                    rf_we       = 1'b1;
+                    rD_addr     = inst_in[6:10];
+                    rf_wrByteEn = 8'b1111_1111;
+
+                    mem_en     = 1'b1;
+                    mem_we     = 1'b0;
+                    imm_Addr   = inst_in[16:31];
+
+                    nic_En     = 1'b0;
+                    nic_WrEn   = 1'b0;
+                end
             end
 
             M_SD: begin
-                rf_we      = 1'b0;
-                rD_addr    = inst_in[6:10];
+                if(inst_in[16:17] == 2'b11) begin
+                    rf_we      = 1'b0;
+                    rD_addr    = inst_in[6:10];
 
-                mem_en     = 1'b1;
-                mem_we     = 1'b1;
-                imm_Addr   = inst_in[16:31];
+                    mem_en     = 1'b0;
+                    mem_we     = 1'b0;
+                    imm_Addr   = inst_in[16:31];
+
+                    nic_En     = 1'b1;
+                    nic_WrEn   = 1'b1;
+                end
+                else begin
+                    rf_we      = 1'b0;
+                    rD_addr    = inst_in[6:10];
+
+                    mem_en     = 1'b1;
+                    mem_we     = 1'b1;
+                    imm_Addr   = inst_in[16:31];
+
+                    nic_En     = 1'b0;
+                    nic_WrEn   = 1'b0;
+                end
             end
 
             R_BEZ: begin
@@ -160,7 +199,9 @@ module decoder(
             
                 imm_Addr      = 16'd0;
 
-                is_branch = 1'b0;
+                is_branch     = 1'b0;
+                nic_En        = 1'b0;
+                nic_WrEn      = 1'b0;
             end
         endcase
     end
