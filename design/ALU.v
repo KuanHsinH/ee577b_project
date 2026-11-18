@@ -1,3 +1,8 @@
+`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW_div.v"
+`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW_sqrt.v"
+`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW01_addsub.v"
+`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW02_mult.v"
+`include "/tools/synopsys/syn/Y-2026.03/dw/sim_ver/DW_shifter.v"
 module ALU #(
     parameter DATA_WIDTH = 64
 ) (
@@ -212,6 +217,24 @@ module ALU #(
     wire data_tc_ctrl = (function_code == VSRA) ? 1'b1 : 1'b0;
 
     always @(*) begin
+        // Give inactive shift widths a value on every path; otherwise they
+        // retain their previous values and synthesis infers latches.
+        shift_b_0 = 4'd0;
+        shift_b_1 = 4'd0;
+        shift_b_2 = 4'd0;
+        shift_b_3 = 4'd0;
+        shift_b_4 = 4'd0;
+        shift_b_5 = 4'd0;
+        shift_b_6 = 4'd0;
+        shift_b_7 = 4'd0;
+        shift_h_0 = 5'd0;
+        shift_h_1 = 5'd0;
+        shift_h_2 = 5'd0;
+        shift_h_3 = 5'd0;
+        shift_w_0 = 6'd0;
+        shift_w_1 = 6'd0;
+        shift_d_0 = 7'd0;
+
         if(function_code == VSLL) begin
             case (WW)
                 2'b00: begin

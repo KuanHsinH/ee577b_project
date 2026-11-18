@@ -1,0 +1,49 @@
+# Synthesize the Phase 2 Cardinal CPUs separately with identical constraints.
+# Place this file in the Phase 2 project root and syn_cpu.tcl in scripts/.
+# Run: make -f Makefile.cpu_synth both
+
+DESIGN_DIR       ?= ./design
+SYNTH_SCRIPT     ?= ./scripts/syn_cpu.tcl
+RESULTS_DIR      ?= ./synth_results
+DC_SHELL         ?= dc_shell
+CLOCK_PERIOD_NS  ?= 5.0
+
+# The course setup script normally supplies these environment variables.
+SYNOPSYS_DC      ?= /tools/synopsys/syn/Y-2026.03
+OSU45_LIB_DIR    ?= /tools/PDK/NCSU45PDK/FreePDK45/osu_soc/lib/files
+export SYNOPSYS_DC OSU45_LIB_DIR
+
+COMMON_RTL := $(addprefix $(DESIGN_DIR)/,ALU.v decoder.v register_file.v)
+BASE_RTL   := $(DESIGN_DIR)/cardinal_cpu.v
+BP_RTL     := $(DESIGN_DIR)/cardinal_cpu_bp_v1.v $(DESIGN_DIR)/BPB.v
+
+BASE_NETLIST := $(RESULTS_DIR)/cardinal_cpu/netlist/cardinal_cpu_syn.v
+BP_NETLIST   := $(RESULTS_DIR)/cardinal_cpu_bp_v1/netlist/cardinal_cpu_bp_v1_syn.v
+
+.PHONY: all both baseline bp
+.NOTPARALLEL:
+
+all: both
+both: baseline bp
+baseline: $(BASE_NETLIST)
+bp: $(BP_NETLIST)
+
+$(BASE_NETLIST): $(COMMON_RTL) $(BASE_RTL) $(SYNTH_SCRIPT)
+	@mkdir -p "$(RESULTS_DIR)/cardinal_cpu"
+	DESIGN_NAME=cardinal_cpu \
+	DESIGN_DIR="$(abspath $(DESIGN_DIR))" \
+	OUTPUT_DIR="$(abspath $(RESULTS_DIR)/cardinal_cpu)" \
+	CLOCK_PERIOD_NS="$(CLOCK_PERIOD_NS)" \
+	$(DC_SHELL) -f "$(SYNTH_SCRIPT)" \
+	-output_log_file "$(RESULTS_DIR)/cardinal_cpu/dc.log"
+	@test -s "$@" || { echo "Missing netlist: $@" >&2; exit 1; }
+
+$(BP_NETLIST): $(COMMON_RTL) $(BP_RTL) $(SYNTH_SCRIPT)
+	@mkdir -p "$(RESULTS_DIR)/cardinal_cpu_bp_v1"
+	DESIGN_NAME=cardinal_cpu_bp_v1 \
+	DESIGN_DIR="$(abspath $(DESIGN_DIR))" \
+	OUTPUT_DIR="$(abspath $(RESULTS_DIR)/cardinal_cpu_bp_v1)" \
+	CLOCK_PERIOD_NS="$(CLOCK_PERIOD_NS)" \
+	$(DC_SHELL) -f "$(SYNTH_SCRIPT)" \
+	-output_log_file "$(RESULTS_DIR)/cardinal_cpu_bp_v1/dc.log"
+	@test -s "$@" || { echo "Missing netlist: $@" >&2; exit 1; }

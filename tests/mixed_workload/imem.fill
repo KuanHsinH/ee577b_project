@@ -1,0 +1,30 @@
+80200000  //   0 (PC   0): vld r1, 0
+80400001  //   1 (PC   4): vld r2, 1
+80E00002  //   2 (PC   8): vld r7, 2
+A88410C6  //   3 (PC  12): vadd.ad r4, r4, r2
+84800019  //   4 (PC  16): vsd r4, 25
+A92920C6  //   5 (PC  20): vadd.ad r9, r9, r4
+A94A48C3  //   6 (PC  24): vxor.ad r10, r10, r9
+A86310C3  //   7 (PC  28): vxor.ad r3, r3, r2
+88600028  //   8 (PC  32): vbez r3, skip_toggle
+A8A510C6  //   9 (PC  36): vadd.ad r5, r5, r2
+A8C610C6  //  10 (PC  40): vadd.ad r6, r6, r2
+A8C638C1  //  11 (PC  44): vand.ad r6, r6, r7
+A96B30C6  //  12 (PC  48): vadd.ad r11, r11, r6
+88C0003C  //  13 (PC  52): vbez r6, skip_phase
+A90810C6  //  14 (PC  56): vadd.ad r8, r8, r2
+A82110C7  //  15 (PC  60): vsub.ad r1, r1, r2
+8C20000C  //  16 (PC  64): vbnez r1, loop
+84800010  //  17 (PC  68): vsd r4, 16
+84A00011  //  18 (PC  72): vsd r5, 17
+85000012  //  19 (PC  76): vsd r8, 18
+84200013  //  20 (PC  80): vsd r1, 19
+84C00014  //  21 (PC  84): vsd r6, 20
+84600015  //  22 (PC  88): vsd r3, 21
+85200016  //  23 (PC  92): vsd r9, 22
+85400017  //  24 (PC  96): vsd r10, 23
+85600018  //  25 (PC 100): vsd r11, 24
+F0000000  //  26 (PC 104): vnop
+F0000000  //  27 (PC 108): vnop
+F0000000  //  28 (PC 112): vnop
+00000000  //  29 (PC 116): end
