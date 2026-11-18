@@ -41,6 +41,7 @@ module cardinal_cpu (
     localparam DATA_WIDTH = 64;
     localparam REG_ADDR_WIDTH = 5;
     localparam MEM_ADDR_WIDTH = 16;
+    localparam PIPE_STAGES = 4;
 
     // 6 bit function code
     localparam VAND   = 6'b000001,
@@ -91,7 +92,6 @@ module cardinal_cpu (
     reg  [0:DATA_WIDTH-1]     forward_MUX_d0_ID, forward_MUX_d1_ID;
 
     assign br_addr = {16'b0, imm_addr_ID};
-    assign stall = 1'b0; // No multi-cycle stall condition has been added yet.
 
     //--------------------------------------------------------------------------
 
@@ -129,7 +129,6 @@ module cardinal_cpu (
     wire        mem_en_ID, mem_we_ID;
 
     wire [0:1]  WW_ID;
-    wire [0:2]  PPP_ID;
     wire [0:5]  function_code_ID;
     wire [0:5]  op_type_ID;
     
@@ -146,7 +145,6 @@ module cardinal_cpu (
         .mem_we(mem_we_ID),
 
         .WW(WW_ID),
-        .PPP(PPP_ID),
         .function_code(function_code_ID),
         .imm_Addr(imm_addr_ID),
         .op_type(op_type_ID),
@@ -184,9 +182,9 @@ module cardinal_cpu (
     );
 
     // Match each ID source against the two older instructions that may write it.
-    wire hazard_EX_d0 = rf_we_EX && (rD_addr_EX != 5'd0) &&
+    wire hazard_EX_d0 = rf_we_EX && !stall && (rD_addr_EX != 5'd0) &&
                         (rD_addr_EX == rf_rdAddr0);
-    wire hazard_EX_d1 = rf_we_EX && (rD_addr_EX != 5'd0) &&
+    wire hazard_EX_d1 = rf_we_EX && !stall && (rD_addr_EX != 5'd0) &&
                         (rD_addr_EX == rf_rdAddr1);
     wire hazard_WB_d0 = rf_wrEn_WB && (rf_wrAddr_WB != 5'd0) &&
                         (rf_wrAddr_WB == rf_rdAddr0);
@@ -202,10 +200,10 @@ module cardinal_cpu (
     assign addr_nic = addr_out[30:31];
     assign din_nic = forward_MUX_d0_ID;
     assign d_out = forward_MUX_d0_ID;
-    assign nicEn = mem_en_ID && nic_selected_ID;
-    assign nicWrEn = mem_we_ID && nic_selected_ID;
-    assign memEn = mem_en_ID && !nic_selected_ID;
-    assign memWrEn = mem_we_ID && !nic_selected_ID;
+    assign nicEn = mem_en_ID && nic_selected_ID && !stall;
+    assign nicWrEn = mem_we_ID && nic_selected_ID && !stall;
+    assign memEn = mem_en_ID && !nic_selected_ID && !stall;
+    assign memWrEn = mem_we_ID && !nic_selected_ID && !stall;
     
     // branch
     always @(*) begin
@@ -217,7 +215,7 @@ module cardinal_cpu (
     end
 
     // ID/EX reg
-    reg [0:176] ID_EX_reg;
+    reg [0:173] ID_EX_reg;
     always @(posedge clk) begin
         if(reset) begin
             ID_EX_reg <= 0;
@@ -233,14 +231,13 @@ module cardinal_cpu (
                 ID_EX_reg[133] <= rf_we_ID;
                 ID_EX_reg[134:141] <= rf_wrByteEn_ID;
 
-                ID_EX_reg[142:144] <= PPP_ID;
-                ID_EX_reg[145:146] <= WW_ID;
-                ID_EX_reg[147:152] <= function_code_ID;
-                ID_EX_reg[153:168] <= imm_addr_ID;
-                ID_EX_reg[169:174] <= op_type_ID;
+                ID_EX_reg[142:143] <= WW_ID;
+                ID_EX_reg[144:149] <= function_code_ID;
+                ID_EX_reg[150:165] <= imm_addr_ID;
+                ID_EX_reg[166:171] <= op_type_ID;
 
-                ID_EX_reg[175] <= mem_en_ID;
-                ID_EX_reg[176] <= mem_we_ID;
+                ID_EX_reg[172] <= mem_en_ID;
+                ID_EX_reg[173] <= mem_we_ID;
             end
         end
     end
@@ -250,23 +247,42 @@ module cardinal_cpu (
     // EX stage
     wire [0:DATA_WIDTH-1]     rA_EX            = ID_EX_reg[0:63];
     wire [0:DATA_WIDTH-1]     rB_EX            = ID_EX_reg[64:127];
-    assign rD_addr_EX = ID_EX_reg[128:132];
-    assign rf_we_EX = ID_EX_reg[133];
-    assign rf_wrByteEn_EX = ID_EX_reg[134:141];
 
-    wire [0:2]                PPP_EX           = ID_EX_reg[142:144]; // delete
-    wire [0:1]                WW_EX            = ID_EX_reg[145:146];
+    assign                    rD_addr_EX       = ID_EX_reg[128:132];
+    assign                    rf_we_EX         = ID_EX_reg[133];
+    assign                    rf_wrByteEn_EX   = ID_EX_reg[134:141];
 
-    wire [0:5]                function_code_EX = ID_EX_reg[147:152];
-    wire [0:15]               imm_addr_EX      = ID_EX_reg[153:168];
+    wire [0:1]                WW_EX            = ID_EX_reg[142:143];
+    wire [0:5]                function_code_EX = ID_EX_reg[144:149];
+    wire [0:15]               imm_addr_EX      = ID_EX_reg[150:165];
+    wire [0:5]                op_type_EX       = ID_EX_reg[166:171];
+    wire                      mem_en_EX        = ID_EX_reg[172];
+    wire                      mem_we_EX        = ID_EX_reg[173];
+
     wire                      nic_selected_EX  = (imm_addr_EX[0:1] == 2'b11);
-    wire [0:5]                op_type_EX       = ID_EX_reg[169:174]; // delete
-    wire                      mem_en_EX        = ID_EX_reg[175];
-    wire                      mem_we_EX        = ID_EX_reg[176];
+
+    // Two-stage DesignWare units take one extra edge to produce a result.
+    // Hold younger instructions while the pipe advances, then forward the
+    // registered result in the cycle that releases the stall.
+    reg [0:2] stall_cycles;
+    wire stall_op_EX = (op_type_EX == R_ALU) &&
+                      ((function_code_EX == VDIV)   || (function_code_EX == VMOD)   ||
+                       (function_code_EX == VSQRT) || (function_code_EX == VMULEU) ||
+                       (function_code_EX == VMULOU) || (function_code_EX == VSQEU)  ||
+                       (function_code_EX == VSQOU));
+
+    assign stall = stall_op_EX && (stall_cycles < PIPE_STAGES - 1);
+
+    always @(posedge clk) begin
+        if (reset || !stall) stall_cycles <= 3'd0;
+        else stall_cycles <= stall_cycles + 3'd1;
+    end
 
     wire [0:DATA_WIDTH-1] ALU_out;
 
-    ALU arithmetic1(
+    ALU #(.PIPE_STAGES(PIPE_STAGES)) arithmetic1(
+        .clk(clk),
+        .reset(reset),
         .rA(rA_EX),
         .rB(rB_EX),
         .function_code(function_code_EX),
@@ -284,6 +300,9 @@ module cardinal_cpu (
     reg [0:77] EX_WB_reg;
     always @(posedge clk) begin
         if(reset) begin
+            EX_WB_reg <= 0;
+        end
+        else if(stall) begin
             EX_WB_reg <= 0;
         end
         else begin

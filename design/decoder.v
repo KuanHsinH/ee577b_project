@@ -6,7 +6,6 @@ module decoder(
     rD_addr,
     rf_wrByteEn,
     WW,
-    PPP,
     function_code,
     mem_en,
     mem_we,
@@ -22,7 +21,6 @@ module decoder(
     output reg [0:7]  rf_wrByteEn;
 
     output reg [0:1]  WW;
-    output     [0:2]  PPP;
 
     output reg [0:5]  function_code;
 
@@ -68,7 +66,6 @@ module decoder(
                participate_E = 3'b011,
                participate_O = 3'b100;
                
-    assign PPP = inst_in[21:23];
     assign op_type = inst_in[0:5];
 
     // decoding opcode

@@ -57,7 +57,8 @@ INCLUDE_DIRECTORY = ./include
 # (for example DW_COMPONENTS += DW_div_pipe); keep the default entries.
 SYNOPSYS_DC   ?= /tools/synopsys/syn/Y-2026.03
 DW_SIM_DIR     = $(SYNOPSYS_DC)/dw/sim_ver
-DW_COMPONENTS  = DW_div DW_sqrt DW02_mult DW01_addsub DW_shifter
+DW_COMPONENTS  = DW_div DW_sqrt DW02_mult DW01_addsub DW_shifter \
+                 DW_div_pipe DW_sqrt_pipe DW_mult_pipe
 DW_SIM_FILES   = $(foreach c,$(DW_COMPONENTS),$(DW_SIM_DIR)/$(c).v)
 
 SIM_SCRIPT_FILE_GUI    = ./scripts/runscript.tcl

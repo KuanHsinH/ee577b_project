@@ -37,6 +37,8 @@ module cardinal_cpu_bp_v1 #(
     output [0:63] d_out       // store data to the data memory
 );
 
+    localparam PIPE_STAGES = 2;
+
     // 6 bit function code
     localparam VAND   = 6'b000001,
                VOR    = 6'b000010,
@@ -86,7 +88,6 @@ module cardinal_cpu_bp_v1 #(
     reg  [0:DATA_WIDTH-1]     forward_MUX_d0_ID, forward_MUX_d1_ID;
 
     assign br_addr = {16'b0, imm_addr_ID};
-    assign stall = 1'b0; // No multi-cycle stall condition has been added yet.
 
     //--------------------------------------------------------------------------
 
@@ -221,9 +222,9 @@ module cardinal_cpu_bp_v1 #(
     );
 
     // Match each ID source against the two older instructions that may write it.
-    wire hazard_EX_d0 = rf_we_EX && (rD_addr_EX != 5'd0) &&
+    wire hazard_EX_d0 = rf_we_EX && !stall && (rD_addr_EX != 5'd0) &&
                         (rD_addr_EX == rf_rdAddr0);
-    wire hazard_EX_d1 = rf_we_EX && (rD_addr_EX != 5'd0) &&
+    wire hazard_EX_d1 = rf_we_EX && !stall && (rD_addr_EX != 5'd0) &&
                         (rD_addr_EX == rf_rdAddr1);
     wire hazard_WB_d0 = rf_wrEn_WB && (rf_wrAddr_WB != 5'd0) &&
                         (rf_wrAddr_WB == rf_rdAddr0);
@@ -233,8 +234,8 @@ module cardinal_cpu_bp_v1 #(
 
 
     // assigning mem_addr and mem_en
-    assign memEn = mem_en_ID;
-    assign memWrEn = mem_we_ID;
+    assign memEn = mem_en_ID && !stall;
+    assign memWrEn = mem_we_ID && !stall;
     assign addr_out = {16'b0, imm_addr_ID};
     assign d_out = forward_MUX_d0_ID;
     
@@ -297,9 +298,23 @@ module cardinal_cpu_bp_v1 #(
     wire                      mem_en_EX        = ID_EX_reg[175];
     wire                      mem_we_EX        = ID_EX_reg[176];
 
+    reg [7:0] slow_cycles;
+    wire slow_op_EX = (op_type_EX == R_ALU) &&
+                      ((function_code_EX == VDIV)   || (function_code_EX == VMOD)   ||
+                       (function_code_EX == VSQRT) || (function_code_EX == VMULEU) ||
+                       (function_code_EX == VMULOU) || (function_code_EX == VSQEU)  ||
+                       (function_code_EX == VSQOU));
+    assign stall = slow_op_EX && (slow_cycles < PIPE_STAGES - 1);
+    always @(posedge clk) begin
+        if (reset || !stall) slow_cycles <= 8'd0;
+        else slow_cycles <= slow_cycles + 8'd1;
+    end
+
     wire [0:DATA_WIDTH-1] ALU_out;
 
-    ALU arithmetic1(
+    ALU #(.PIPE_STAGES(PIPE_STAGES)) arithmetic1(
+        .clk(clk),
+        .reset(reset),
         .rA(rA_EX),
         .rB(rB_EX),
         .function_code(function_code_EX),
@@ -314,6 +329,9 @@ module cardinal_cpu_bp_v1 #(
     reg [0:77] EX_WB_reg;
     always @(posedge clk) begin
         if(reset) begin
+            EX_WB_reg <= 0;
+        end
+        else if(stall) begin
             EX_WB_reg <= 0;
         end
         else begin

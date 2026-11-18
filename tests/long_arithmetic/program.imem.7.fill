@@ -1,0 +1,83 @@
+80200000  //   0 (PC   0): vld r1, 0
+80400001  //   1 (PC   4): vld r2, 1
+80600002  //   2 (PC   8): vld r3, 2
+80800003  //   3 (PC  12): vld r4, 3
+82A00005  //   4 (PC  16): vld r21, 5
+A9411008  //   5 (PC  20): vmuleu.ab r10, r1, r2
+85400020  //   6 (PC  24): vsd r10, 32
+A9411048  //   7 (PC  28): vmuleu.ah r10, r1, r2
+85400021  //   8 (PC  32): vsd r10, 33
+A9411088  //   9 (PC  36): vmuleu.aw r10, r1, r2
+85400022  //  10 (PC  40): vsd r10, 34
+A9411009  //  11 (PC  44): vmulou.ab r10, r1, r2
+85400023  //  12 (PC  48): vsd r10, 35
+A9411049  //  13 (PC  52): vmulou.ah r10, r1, r2
+85400024  //  14 (PC  56): vsd r10, 36
+A9411089  //  15 (PC  60): vmulou.aw r10, r1, r2
+85400025  //  16 (PC  64): vsd r10, 37
+A9411010  //  17 (PC  68): vsqeu.ab r10, r1, r2
+85400026  //  18 (PC  72): vsd r10, 38
+A9411050  //  19 (PC  76): vsqeu.ah r10, r1, r2
+85400027  //  20 (PC  80): vsd r10, 39
+A9411090  //  21 (PC  84): vsqeu.aw r10, r1, r2
+85400028  //  22 (PC  88): vsd r10, 40
+A9411011  //  23 (PC  92): vsqou.ab r10, r1, r2
+85400029  //  24 (PC  96): vsd r10, 41
+A9411051  //  25 (PC 100): vsqou.ah r10, r1, r2
+8540002A  //  26 (PC 104): vsd r10, 42
+A9411091  //  27 (PC 108): vsqou.aw r10, r1, r2
+8540002B  //  28 (PC 112): vsd r10, 43
+A941180E  //  29 (PC 116): vdiv.ab r10, r1, r3
+8540002C  //  30 (PC 120): vsd r10, 44
+A941184E  //  31 (PC 124): vdiv.ah r10, r1, r3
+8540002D  //  32 (PC 128): vsd r10, 45
+A941188E  //  33 (PC 132): vdiv.aw r10, r1, r3
+8540002E  //  34 (PC 136): vsd r10, 46
+A94118CE  //  35 (PC 140): vdiv.ad r10, r1, r3
+8540002F  //  36 (PC 144): vsd r10, 47
+A941180F  //  37 (PC 148): vmod.ab r10, r1, r3
+85400030  //  38 (PC 152): vsd r10, 48
+A941184F  //  39 (PC 156): vmod.ah r10, r1, r3
+85400031  //  40 (PC 160): vsd r10, 49
+A941188F  //  41 (PC 164): vmod.aw r10, r1, r3
+85400032  //  42 (PC 168): vsd r10, 50
+A94118CF  //  43 (PC 172): vmod.ad r10, r1, r3
+85400033  //  44 (PC 176): vsd r10, 51
+A9411812  //  45 (PC 180): vsqrt.ab r10, r1, r3
+85400034  //  46 (PC 184): vsd r10, 52
+A9411852  //  47 (PC 188): vsqrt.ah r10, r1, r3
+85400035  //  48 (PC 192): vsd r10, 53
+A9411892  //  49 (PC 196): vsqrt.aw r10, r1, r3
+85400036  //  50 (PC 200): vsd r10, 54
+A94118D2  //  51 (PC 204): vsqrt.ad r10, r1, r3
+85400037  //  52 (PC 208): vsd r10, 55
+A9611088  //  53 (PC 212): vmuleu.aw r11, r1, r2
+A98B20CE  //  54 (PC 216): vdiv.ad r12, r11, r4
+A9AC20CF  //  55 (PC 220): vmod.ad r13, r12, r4
+A9CD00D2  //  56 (PC 224): vsqrt.ad r14, r13, r0
+85600046  //  57 (PC 228): vsd r11, 70
+85800047  //  58 (PC 232): vsd r12, 71
+85A00048  //  59 (PC 236): vsd r13, 72
+85C00049  //  60 (PC 240): vsd r14, 73
+A9E10051  //  61 (PC 244): vsqou.ah r15, r1, r0
+AA0478CE  //  62 (PC 248): vdiv.ad r16, r4, r15
+8600004A  //  63 (PC 252): vsd r16, 74
+AA2000D2  //  64 (PC 256): vsqrt.ad r17, r0, r0
+8A20010C  //  65 (PC 260): vbez r17, sqrt_zero
+8420004B  //  66 (PC 264): vsd r1, 75
+AA4100CF  //  67 (PC 268): vmod.ad r18, r1, r0
+8E400118  //  68 (PC 272): vbnez r18, mod_nonzero
+8420004C  //  69 (PC 276): vsd r1, 76
+8640004D  //  70 (PC 280): vsd r18, 77
+AA6100CE  //  71 (PC 284): vdiv.ad r19, r1, r0
+8660004E  //  72 (PC 288): vsd r19, 78
+AA8100CF  //  73 (PC 292): vmod.ad r20, r1, r0
+8680004F  //  74 (PC 296): vsd r20, 79
+AAA11308  //  75 (PC 300): vmuleu.eb r21, r1, r2
+86A00050  //  76 (PC 304): vsd r21, 80
+AAA104D2  //  77 (PC 308): vsqrt.od r21, r1, r0
+86A00051  //  78 (PC 312): vsd r21, 81
+F0000000  //  79 (PC 316): vnop
+F0000000  //  80 (PC 320): vnop
+F0000000  //  81 (PC 324): vnop
+00000000  //  82 (PC 328): end
